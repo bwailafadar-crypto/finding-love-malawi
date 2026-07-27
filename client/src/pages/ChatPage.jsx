@@ -1,0 +1,272 @@
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../hooks/useSocket';
+import { FiArrowLeft, FiSend, FiPhone, FiVideo, FiMoreVertical, FiInfo, FiSmile, FiCheck, FiClock } from 'react-icons/fi';
+import api from '../utils/api';
+
+const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
+
+export default function ChatPage() {
+  const { matchId } = useParams();
+  const { user } = useAuth();
+  const socket = useSocket();
+  const navigate = useNavigate();
+  const [match, setMatch] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const [online, setOnline] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showGif, setShowGif] = useState(false);
+  const [gifSearch, setGifSearch] = useState('');
+  const [gifs, setGifs] = useState([]);
+  const [reactingTo, setReactingTo] = useState(null);
+  const messagesEnd = useRef(null);
+  const typingTimeout = useRef(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [mRes, msgRes] = await Promise.all([
+          api.matches.list().catch(() => []),
+          api.messages.list(matchId).catch(() => []),
+        ]);
+        const list = Array.isArray(mRes) ? mRes : mRes.matches || [];
+        const m = list.find((x) => String(x.id) === String(matchId));
+        if (m) setMatch(m);
+        const msgs = Array.isArray(msgRes) ? msgRes : msgRes.messages || [];
+        setMessages(msgs);
+      } catch {}
+      setLoading(false);
+    };
+    load();
+  }, [matchId]);
+
+  useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  useEffect(() => {
+    if (!socket || !matchId) return;
+    socket.emit('join_chat', matchId);
+    socket.on('new_message', (msg) => { if (String(msg.match_id) === String(matchId)) setMessages((prev) => [...prev, msg]); });
+    socket.on('message_read', ({ matchId: mId }) => {
+      if (String(mId) === String(matchId)) setMessages((prev) => prev.map((m) => m.sender_id === user.id ? { ...m, is_read: 1 } : m));
+    });
+    socket.on('message_reaction', ({ messageId, reaction, matchId: mId }) => {
+      if (String(mId) === String(matchId)) setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, reaction } : m));
+    });
+    socket.on('user_typing', ({ matchId: mId }) => { if (String(mId) === String(matchId)) setOtherTyping(true); });
+    socket.on('user_stop_typing', ({ matchId: mId }) => { if (String(mId) === String(matchId)) setOtherTyping(false); });
+    socket.on('online_users', (users) => { if (match?.other_user?.id) setOnline(users.includes(match.other_user.id)); });
+    return () => { socket.emit('leave_chat', matchId); socket.off('new_message'); socket.off('user_typing'); socket.off('user_stop_typing'); socket.off('message_read'); socket.off('message_reaction'); };
+  }, [socket, matchId, match?.other_user?.id]);
+
+  const handleTyping = () => {
+    socket?.emit('typing', { matchId, userId: user.id });
+    clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => socket?.emit('stop_typing', { matchId, userId: user.id }), 2000);
+  };
+
+  const sendMessage = async (content, type = 'text') => {
+    if (!content?.trim() || sending) return;
+    setSending(true);
+    const msg = content.trim();
+    setNewMsg('');
+    try {
+      const sent = await api.messages.send(matchId, msg, type);
+      setMessages((prev) => [...prev, sent]);
+      socket?.emit('stop_typing', { matchId, userId: user.id });
+    } catch { setNewMsg(msg); }
+    setSending(false);
+  };
+
+  const handleReact = async (messageId, reaction) => {
+    try {
+      setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, reaction } : m));
+      setReactingTo(null);
+    } catch {}
+  };
+
+  const searchGifs = async () => {
+    if (!gifSearch.trim()) return;
+    try {
+      const placeholder = Array.from({ length: 8 }, (_, i) => ({
+        id: i,
+        url: `https://media.giphy.com/media/${['l0MYt5jPR6QX5pnqM', '3o7btZ1GtDz2dGBrFS', 'l0HlBO7eyXzSZkJri', 'l46Cy1rHbQ92uuLXa'][i % 4]}/giphy.gif`,
+        preview: `https://media.giphy.com/media/${['l0MYt5jPR6QX5pnqM', '3o7btZ1GtDz2dGBrFS', 'l0HlBO7eyXzSZkJri', 'l46Cy1rHbQ92uuLXa'][i % 4]}/200.gif`,
+      }));
+      setGifs(placeholder);
+    } catch {}
+  };
+
+  const sendGif = (url) => { sendMessage(url, 'image'); setShowGif(false); setGifs([]); setGifSearch(''); };
+
+  const otherUser = match?.other_user || { name: 'Match', photos: [] };
+
+  const renderStatus = (msg) => {
+    if (msg.sender_id !== user.id) return null;
+    if (msg.is_read) return <span className="text-blue-400 font-bold text-xs">✓✓</span>;
+    return <span className="text-gray-400 font-bold text-xs">✓</span>;
+  };
+
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen dark:bg-dark-bg">
+      <div className="animate-spin rounded-full h-10 w-10 border-4 border-pink-500 border-t-transparent" />
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border sticky top-0 z-10">
+        <button onClick={() => navigate(-1)} className="p-1 text-gray-600 dark:text-dark-muted hover:text-gray-900 dark:hover:text-white">
+          <FiArrowLeft size={22} />
+        </button>
+        <div className="relative">
+          <img src={otherUser.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop'}
+            alt="" className="w-10 h-10 rounded-full object-cover bg-gray-100" />
+          {online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-dark-card" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{otherUser.name}</p>
+          <p className="text-xs text-gray-400 dark:text-dark-muted">{otherTyping ? 'Typing...' : online ? 'Online' : 'Offline'}</p>
+        </div>
+        <div className="relative">
+          <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-gray-400 dark:text-dark-muted hover:text-gray-600 dark:hover:text-white">
+            <FiMoreVertical size={20} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-10 bg-white dark:bg-dark-card shadow-xl rounded-xl border border-gray-100 dark:border-dark-border py-1 w-48 z-20">
+              <button onClick={() => { navigate(`/call/${matchId}/${otherUser.id}`); setShowMenu(false); }}
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface flex items-center gap-2">
+                <FiPhone size={16} /> Voice Call
+              </button>
+              <button onClick={() => { navigate(`/call/${matchId}/${otherUser.id}`); setShowMenu(false); }}
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface flex items-center gap-2">
+                <FiVideo size={16} /> Video Call
+              </button>
+              <button onClick={() => { setShowMenu(false); }}
+                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface flex items-center gap-2">
+                <FiInfo size={16} /> Profile
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="text-center py-12 text-gray-400 dark:text-dark-muted">
+            <div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+              <FiSmile size={28} className="text-pink-400" />
+            </div>
+            <p className="font-medium">You matched with {otherUser.name}!</p>
+            <p className="text-sm mt-1">Send a message to start the conversation</p>
+          </div>
+        )}
+        {messages.map((msg, i) => {
+          const isMine = msg.sender_id === user.id;
+          const showAvatar = !isMine && (i === 0 || messages[i - 1]?.sender_id !== msg.sender_id);
+          return (
+            <div key={msg.id || i} className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
+              {!isMine && showAvatar && (
+                <img src={otherUser.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop'}
+                  alt="" className="w-7 h-7 rounded-full object-cover bg-gray-100 flex-shrink-0" />
+              )}
+              {!isMine && !showAvatar && <div className="w-7 flex-shrink-0" />}
+              <div className="relative max-w-[75%] group" onDoubleClick={() => setReactingTo(msg.id)}>
+                {/* Image/GIF messages */}
+                {msg.message_type === 'image' ? (
+                  <img src={msg.content} alt="" className="rounded-2xl max-w-[250px] shadow-sm" />
+                ) : (
+                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                    isMine ? 'bg-pink-500 text-white rounded-br-md' : 'bg-white dark:bg-dark-surface text-gray-800 dark:text-dark-text rounded-bl-md shadow-sm'
+                  }`}>
+                    {msg.content}
+                  </div>
+                )}
+                {/* Read receipt + time */}
+                <div className={`flex items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                  <span className="text-[10px] text-gray-400 dark:text-dark-muted">
+                    {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                  {renderStatus(msg)}
+                </div>
+                {/* Reaction */}
+                {msg.reaction && (
+                  <div className={`absolute -bottom-2 ${isMine ? 'right-2' : 'left-2'} bg-white dark:bg-dark-surface rounded-full px-1.5 py-0.5 text-xs shadow-sm border border-gray-100 dark:border-dark-border`}>
+                    {msg.reaction}
+                  </div>
+                )}
+                {/* Reaction picker */}
+                {reactingTo === msg.id && (
+                  <div className="absolute -top-10 left-0 bg-white dark:bg-dark-card rounded-full shadow-lg px-2 py-1 flex gap-1 border border-gray-100 dark:border-dark-border z-20">
+                    {REACTIONS.map((r) => (
+                      <button key={r} onClick={() => handleReact(msg.id, r)}
+                        className="text-lg hover:scale-125 transition px-1">{r}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {otherTyping && (
+          <div className="flex items-center gap-2">
+            <div className="px-4 py-3 bg-white dark:bg-dark-surface rounded-2xl rounded-bl-md shadow-sm">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEnd} />
+      </div>
+
+      {/* GIF panel */}
+      {showGif && (
+        <div className="border-t border-gray-100 dark:border-dark-border bg-white dark:bg-dark-card p-3">
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={gifSearch} onChange={(e) => setGifSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchGifs()}
+              placeholder="Search GIFs..."
+              className="flex-1 px-3 py-2 bg-gray-100 dark:bg-dark-surface rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" />
+            <button onClick={searchGifs} className="px-3 py-2 bg-pink-500 text-white rounded-xl text-sm font-bold">Search</button>
+          </div>
+          <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+            {gifs.map((g) => (
+              <button key={g.id} onClick={() => sendGif(g.url)} className="rounded-lg overflow-hidden aspect-square">
+                <img src={g.preview} alt="" className="w-full h-full object-cover hover:opacity-80 transition" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="px-4 py-3 bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border safe-bottom">
+        <div className="flex items-end gap-2">
+          <button onClick={() => setShowGif(!showGif)}
+            className={`p-2.5 rounded-full transition ${showGif ? 'bg-pink-500 text-white' : 'text-gray-400 dark:text-dark-muted hover:text-gray-600'}`}>
+            <FiSmile size={20} />
+          </button>
+          <input type="text" value={newMsg} onChange={(e) => { setNewMsg(e.target.value); handleTyping(); }}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage(newMsg)}
+            placeholder="Type a message..."
+            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-dark-surface rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:bg-white dark:focus:bg-dark-surface transition"
+            disabled={sending} />
+          <button onClick={() => sendMessage(newMsg)} disabled={!newMsg.trim() || sending}
+            className="w-11 h-11 bg-pink-500 text-white rounded-full flex items-center justify-center flex-shrink-0 hover:bg-pink-600 transition disabled:opacity-40">
+            <FiSend size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

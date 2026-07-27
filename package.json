@@ -1,0 +1,22 @@
+{
+  "name": "finding-love-malawi",
+  "version": "1.0.0",
+  "description": "Dating app for Malawi",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "cd server && node index.js",
+    "build": "cd client && npm install && npm run build",
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "db:setup": "cd server && node setup-db.js",
+    "db:migrate": "cd server && node migrate.js",
+    "postinstall": "cd server && npm install && cd ../client && npm install && cd .. && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
