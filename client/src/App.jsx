@@ -43,14 +43,14 @@ function PageLoader() {
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
 function GuestRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
-  if (user) return <Navigate to="/discover" />;
+  if (user) return <Navigate to="/discover" replace />;
   return children;
 }
 
