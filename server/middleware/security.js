@@ -35,29 +35,30 @@ module.exports = function setupSecurity(app) {
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(cookieParser(process.env.COOKIE_SECRET || 'flm-cookie-secret-change-in-prod'));
 
-  // Global rate limiter — 200 requests per 15 min per IP
+  // Global rate limiter — 500 requests per 15 min per IP
   app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
   }));
 
-  // Strict rate limiter for auth routes — 10 per 15 min per IP
+  // Strict rate limiter for auth routes — 30 per 15 min per IP
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 30,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many auth attempts, please try again in 15 minutes' },
     skipSuccessfulRequests: true,
   });
 
-  // Message sending limiter — 60 per minute
+  // Message sending limiter — 120 per minute
   const messageLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 60,
+    max: 120,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Sending messages too fast' },
