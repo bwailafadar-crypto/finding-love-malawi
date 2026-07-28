@@ -192,6 +192,11 @@ io.on('connection', (socket) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
+
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not set. Auth will fail. Set it in your .env or environment.');
+}
+
 server.listen(PORT, () => {
   console.log(`Finding Love Malawi running on port ${PORT}`);
 });
