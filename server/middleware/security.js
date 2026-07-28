@@ -42,7 +42,9 @@ module.exports = function setupSecurity(app) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
-    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] || 'unknown',
+    keyGenerator: (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+    },
   }));
 
   // Strict rate limiter for auth routes — 30 per 15 min per IP
@@ -53,6 +55,7 @@ module.exports = function setupSecurity(app) {
     legacyHeaders: false,
     message: { error: 'Too many auth attempts, please try again in 15 minutes' },
     skipSuccessfulRequests: true,
+    keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown',
   });
 
   // Message sending limiter — 120 per minute
@@ -62,6 +65,7 @@ module.exports = function setupSecurity(app) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Sending messages too fast' },
+    keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown',
   });
 
   // Upload limiter — 10 per hour
@@ -71,6 +75,7 @@ module.exports = function setupSecurity(app) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Upload limit reached, try again later' },
+    keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown',
   });
 
   // Expose limiters to routes
