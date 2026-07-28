@@ -12,7 +12,10 @@ module.exports = function setupSecurity(app) {
   }));
 
   // CORS — restrict to known origins
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
+  const serverHost = process.env.RENDER_EXTERNAL_URL || '';
+  if (serverHost && !allowedOrigins.includes(serverHost)) allowedOrigins.push(serverHost);
+
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {

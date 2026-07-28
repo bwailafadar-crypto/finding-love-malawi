@@ -55,7 +55,12 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
 
 const io = new Server(server, {
   cors: {
-    origin: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(','),
+    origin: (() => {
+      const o = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
+      const ext = process.env.RENDER_EXTERNAL_URL;
+      if (ext && !o.includes(ext)) o.push(ext);
+      return o;
+    })(),
     methods: ['GET', 'POST'],
   },
   maxHttpBufferSize: 1e6,
