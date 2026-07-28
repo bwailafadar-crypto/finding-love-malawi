@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ firstName: '', email: '', password: '', confirmPassword: '', dateOfBirth: '', gender: '' });
+  const [form, setForm] = useState({ firstName: '', email: '', password: '', confirmPassword: '', age: '', gender: '' });
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,12 +15,14 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.firstName.trim() || !form.email.trim() || !form.password || !form.dateOfBirth || !form.gender) { setError('All fields are required'); return; }
+    if (!form.firstName.trim() || !form.email.trim() || !form.password || !form.age || !form.gender) { setError('All fields are required'); return; }
     if (form.password.length < 8) { setError('Password must be at least 8 characters'); return; }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true); setError('');
     try {
-      await register({ firstName: form.firstName.trim(), email: form.email.trim().toLowerCase(), password: form.password, dateOfBirth: form.dateOfBirth, gender: form.gender });
+      const birthYear = new Date().getFullYear() - parseInt(form.age);
+      const dateOfBirth = `${birthYear}-01-01`;
+      await register({ firstName: form.firstName.trim(), email: form.email.trim().toLowerCase(), password: form.password, dateOfBirth, gender: form.gender });
       navigate('/onboarding');
     } catch (err) { setError(err.message || 'Registration failed'); }
     setLoading(false);
@@ -48,8 +50,13 @@ export default function RegisterPage() {
           </div>
           <input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="Confirm password"
             className="w-full px-4 py-3.5 bg-gray-100 dark:bg-dark-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 dark:text-white transition" required />
-          <input type="date" value={form.dateOfBirth} onChange={set('dateOfBirth')}
-            className="w-full px-4 py-3.5 bg-gray-100 dark:bg-dark-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 dark:text-white transition" required />
+          <select value={form.age} onChange={set('age')}
+            className="w-full px-4 py-3.5 bg-gray-100 dark:bg-dark-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 dark:text-white transition" required>
+            <option value="">Select your age</option>
+            {Array.from({ length: 53 }, (_, i) => 18 + i).map(a => (
+              <option key={a} value={a}>{a} years old</option>
+            ))}
+          </select>
           <select value={form.gender} onChange={set('gender')}
             className="w-full px-4 py-3.5 bg-gray-100 dark:bg-dark-surface rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 dark:text-white transition" required>
             <option value="">Select gender</option>

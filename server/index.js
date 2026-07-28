@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const pool = require('./config/database');
+require('./setup-db');
 const setupSecurity = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const { sanitizeBody } = require('./middleware/validation');
