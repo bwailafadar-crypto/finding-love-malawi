@@ -44,13 +44,27 @@ export default function UsersPage() {
   const handleMessage = async (userId) => {
     try {
       const matches = await api.matches.list();
-      const existing = (Array.isArray(matches) ? matches : []).find(
+      const list = Array.isArray(matches) ? matches : [];
+      const existing = list.find(
         (m) => m.other_user_id === userId || m.user1_id === userId || m.user2_id === userId
       );
       if (existing) {
         navigate(`/chat/${existing.match_id || existing.id}`);
       } else {
-        alert('Match with this person first to start chatting!');
+        const res = await api.swipes.swipe(userId, 'like');
+        setLiked((prev) => new Set([...prev, userId]));
+        if (res.isMatch) {
+          const updatedMatches = await api.matches.list();
+          const newList = Array.isArray(updatedMatches) ? updatedMatches : [];
+          const newMatch = newList.find(
+            (m) => m.other_user_id === userId || m.user1_id === userId || m.user2_id === userId
+          );
+          if (newMatch) {
+            navigate(`/chat/${newMatch.match_id || newMatch.id}`);
+          } else {
+            navigate('/matches');
+          }
+        }
       }
     } catch (err) {
       console.error('Error:', err.message);
