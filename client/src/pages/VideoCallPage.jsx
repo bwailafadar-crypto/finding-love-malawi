@@ -1,17 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { FiPhoneOff, FiMic, FiMicOff, FiVideo, FiVideoOff } from 'react-icons/fi';
 
-const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
 export default function VideoCallPage() {
   const { matchId, userId } = useParams();
-  const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
-  const [callState, setCallState] = useState('idle');
+  const [callState, setCallState] = useState('connecting');
   const [timer, setTimer] = useState(0);
   const [muted, setMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
@@ -20,6 +18,10 @@ export default function VideoCallPage() {
   const pcRef = useRef(null);
   const localStream = useRef(null);
   const timerRef = useRef(null);
+  const startedRef = useRef(false);
+
+  const targetId = parseInt(userId);
+  useEffect(() => { if (!userId || isNaN(targetId)) navigate(-1); }, [userId]);
 
   useEffect(() => {
     if (callState === 'connected') {
@@ -28,56 +30,114 @@ export default function VideoCallPage() {
     return () => clearInterval(timerRef.current);
   }, [callState]);
 
-  const startCall = async () => {
-    try {
-      localStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      if (localRef.current) localRef.current.srcObject = localStream.current;
-      const pc = new RTCPeerConnection(servers);
-      pcRef.current = pc;
-      localStream.current.getTracks().forEach((t) => pc.addTrack(t, localStream.current));
-      pc.ontrack = (e) => { if (remoteRef.current) remoteRef.current.srcObject = e.streams[0]; };
-      pc.onicecandidate = (e) => { if (e.candidate) socket?.emit('video_call_signal', { to: parseInt(userId), signal: { type: 'candidate', candidate: e.candidate } }); };
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket?.emit('video_call_signal', { to: parseInt(userId), signal: { type: 'offer', sdp: pc.localDescription } });
-      setCallState('calling');
-    } catch { navigate(-1); }
-  };
+  const cleanup = useCallback(() => {
+    pcRef.current?.close();
+    pcRef.current = null;
+    localStream.current?.getTracks().forEach((t) => t.stop());
+    localStream.current = null;
+    clearInterval(timerRef.current);
+  }, []);
+
+  const endCall = useCallback(() => {
+    socket?.emit('video_call_end', { to: parseInt(userId) });
+    cleanup();
+    navigate(-1);
+  }, [socket, userId, cleanup, navigate]);
 
   useEffect(() => {
-    if (!socket) return;
-    startCall();
-    socket.on('video_call_signal', async ({ from, signal }) => {
+    if (!socket || startedRef.current) return;
+    startedRef.current = true;
+
+    const targetId = parseInt(userId);
+    let pc = null;
+
+    const start = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream.current = stream;
+        if (localRef.current) localRef.current.srcObject = stream;
+
+        pc = new RTCPeerConnection(servers);
+        pcRef.current = pc;
+
+        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+        pc.ontrack = (e) => {
+          if (remoteRef.current) remoteRef.current.srcObject = e.streams[0];
+        };
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            socket.emit('video_call_signal', { to: targetId, signal: { type: 'candidate', candidate: e.candidate.toJSON() } });
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'connected') setCallState('connected');
+          if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') endCall();
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('video_call_signal', { to: targetId, signal: { type: 'offer', sdp: pc.localDescription.toJSON() } });
+        setCallState('calling');
+      } catch (err) {
+        console.error('Call setup error:', err);
+        cleanup();
+        navigate(-1);
+      }
+    };
+
+    const onSignal = async ({ from, signal }) => {
       if (String(from) !== String(userId)) return;
+
       if (signal.type === 'offer' && pcRef.current) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
         const answer = await pcRef.current.createAnswer();
         await pcRef.current.setLocalDescription(answer);
-        socket.emit('video_call_accept', { to: parseInt(userId), signal: { type: 'answer', sdp: pcRef.current.localDescription } });
+        socket.emit('video_call_accept', { to: targetId, signal: { type: 'answer', sdp: pcRef.current.localDescription.toJSON() } });
+        setCallState('connected');
       } else if (signal.type === 'answer' && pcRef.current) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        setCallState('connected');
       } else if (signal.type === 'candidate' && pcRef.current) {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        try { await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate)); } catch {}
       }
-      setCallState('connected');
-    });
-    socket.on('video_call_accept', async ({ signal }) => {
-      if (pcRef.current && signal.type === 'answer') await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-      setCallState('connected');
-    });
-    socket.on('video_call_end', () => endCall());
-    return () => { socket.off('video_call_signal'); socket.off('video_call_accept'); socket.off('video_call_end'); };
+    };
+
+    const onAccept = async ({ signal }) => {
+      if (pcRef.current && signal.type === 'answer') {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        setCallState('connected');
+      }
+    };
+
+    const onEnd = () => { cleanup(); navigate(-1); };
+
+    socket.on('video_call_signal', onSignal);
+    socket.on('video_call_accept', onAccept);
+    socket.on('video_call_end', onEnd);
+
+    start();
+
+    return () => {
+      socket.off('video_call_signal', onSignal);
+      socket.off('video_call_accept', onAccept);
+      socket.off('video_call_end', onEnd);
+      cleanup();
+    };
   }, [socket, userId]);
 
-  const endCall = () => {
-    pcRef.current?.close();
-    localStream.current?.getTracks().forEach((t) => t.stop());
-    socket?.emit('video_call_end', { to: parseInt(userId) });
-    navigate(-1);
+  const toggleMute = () => {
+    localStream.current?.getAudioTracks().forEach((t) => { t.enabled = muted; });
+    setMuted(!muted);
   };
 
-  const toggleMute = () => { localStream.current?.getAudioTracks().forEach((t) => t.enabled = muted); setMuted(!muted); };
-  const toggleCam = () => { localStream.current?.getVideoTracks().forEach((t) => t.enabled = camOff); setCamOff(!camOff); };
+  const toggleCam = () => {
+    localStream.current?.getVideoTracks().forEach((t) => { t.enabled = camOff; });
+    setCamOff(!camOff);
+  };
+
   const fmt = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (

@@ -2,7 +2,6 @@ const CACHE_NAME = 'flm-v1';
 const STATIC_ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
@@ -34,8 +33,8 @@ self.addEventListener('push', (e) => {
   const data = e.data?.json() || { title: 'Finding Love Malawi', body: 'You have a new notification' };
   const options = {
     body: data.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icon-192.svg',
+    badge: '/icon-192.svg',
     vibrate: [200, 100, 200],
     data: data.url || '/matches',
     actions: [

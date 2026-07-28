@@ -18,7 +18,7 @@ export default function DailyPicksPage() {
           .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
           .slice(0, 10);
         setPicks(sorted);
-      } catch {}
+      } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };
     load();
@@ -28,7 +28,7 @@ export default function DailyPicksPage() {
     try {
       await api.swipes.swipe(id, 'like');
       setLiked((prev) => new Set([...prev, id]));
-    } catch {}
+    } catch (err) { console.error('Error:', err.message); }
   };
 
   if (loading) return (

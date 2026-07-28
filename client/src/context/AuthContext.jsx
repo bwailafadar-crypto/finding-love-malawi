@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
+import { disconnectSocket } from '../hooks/useSocket';
 
 const AuthContext = createContext(null);
 
@@ -13,7 +14,8 @@ export function AuthProvider({ children }) {
     try {
       const data = await api.auth.me();
       setUser(data);
-    } catch {
+    } catch (err) {
+      console.error('Error:', err.message);
       localStorage.removeItem('token');
     } finally {
       setLoading(false);
@@ -38,6 +40,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token');
+    disconnectSocket();
     setUser(null);
   };
 

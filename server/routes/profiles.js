@@ -38,7 +38,7 @@ router.put('/me', auth, async (req, res) => {
     const {
       firstName, lastName, bio, occupation, education, height,
       interests, languages, religion, lifestyle, locationName,
-      latitude, longitude, maxDistance, ageMin, ageMax, lookingFor
+      latitude, longitude, maxDistance, ageMin, ageMax, lookingFor, photos
     } = req.body;
 
     // Sanitize string inputs
@@ -62,6 +62,11 @@ router.put('/me', auth, async (req, res) => {
       return res.status(400).json({ error: 'Interests must be an array with max 20 items' });
     }
 
+    // Validate photos array
+    if (photos && (!Array.isArray(photos) || photos.length > 9)) {
+      return res.status(400).json({ error: 'Photos must be an array with max 9 items' });
+    }
+
     const result = db.query(
       `UPDATE profiles SET
         first_name = COALESCE(?, first_name),
@@ -81,6 +86,7 @@ router.put('/me', auth, async (req, res) => {
         age_min = COALESCE(?, age_min),
         age_max = COALESCE(?, age_max),
         looking_for = COALESCE(?, looking_for),
+        photos = COALESCE(?, photos),
         updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?
        RETURNING *`,
@@ -91,15 +97,16 @@ router.put('/me', auth, async (req, res) => {
         religion,
         lifestyle ? JSON.stringify(lifestyle) : null,
         locationName, latitude, longitude, maxDistance, ageMin, ageMax, lookingFor,
+        photos ? JSON.stringify(photos) : null,
         req.user.id
       ]
     );
 
     const p = result.rows[0];
-    if (p) {
-      p.photos = parseJsonField(p.photos);
-      p.interests = parseJsonField(p.interests);
-    }
+    if (!p) return res.status(404).json({ error: 'Profile not found. Complete onboarding first.' });
+    p.photos = parseJsonField(p.photos);
+    p.interests = parseJsonField(p.interests);
+    p.languages = parseJsonField(p.languages);
     res.json(p);
   } catch (err) {
     console.error('Update profile error:', err);
@@ -133,6 +140,7 @@ router.post('/photos', auth, async (req, res) => {
 
     res.json({ photos: parseJsonField(result.rows[0]?.photos) });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -163,6 +171,7 @@ router.get('/:userId', auth, async (req, res) => {
     p.interests = parseJsonField(p.interests);
     res.json(p);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

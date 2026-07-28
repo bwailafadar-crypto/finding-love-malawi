@@ -1,6 +1,13 @@
 node_modules/
 server/finding_love.db
+server/finding_love.db-shm
+server/finding_love.db-wal
 .env
-*.log
+.env.*
+server/.env
+server/.env.*
 client/dist/
+*.log
 .DS_Store
+server/uploads/*
+!server/uploads/.gitkeep

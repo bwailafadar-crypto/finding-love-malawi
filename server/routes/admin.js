@@ -23,6 +23,7 @@ router.get('/users', auth, adminOnly, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -32,6 +33,7 @@ router.post('/ban/:userId', auth, adminOnly, async (req, res) => {
     db.query('UPDATE users SET is_active = 0 WHERE id = ? AND id != 1', [req.params.userId]);
     res.json({ message: 'User banned' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -41,6 +43,7 @@ router.post('/unban/:userId', auth, adminOnly, async (req, res) => {
     db.query('UPDATE users SET is_active = 1 WHERE id = ?', [req.params.userId]);
     res.json({ message: 'User unbanned' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -50,6 +53,7 @@ router.post('/resolve-report/:reportId', auth, adminOnly, async (req, res) => {
     db.query('UPDATE reports SET status = ? WHERE id = ?', ['resolved', req.params.reportId]);
     res.json({ message: 'Report resolved' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -62,6 +66,7 @@ router.get('/reports', auth, adminOnly, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

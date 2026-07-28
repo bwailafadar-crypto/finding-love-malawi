@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiHeart, FiTrash2, FiLock, FiClock } from 'react-icons/fi';
 import api from '../utils/api';
+import LazyImage from '../components/LazyImage';
 
 export default function MatchesPage() {
   const [matches, setMatches] = useState([]);
@@ -23,7 +24,7 @@ export default function MatchesPage() {
         setMatches(Array.isArray(m) ? m : m.matches || []);
         setNewMatches(Array.isArray(n) ? n : n.matches || []);
         setLikes(Array.isArray(l) ? l : l.likes || []);
-      } catch {}
+      } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };
     load();
@@ -31,7 +32,7 @@ export default function MatchesPage() {
 
   const removeMatch = async (id) => {
     if (!confirm('Remove this match?')) return;
-    try { await api.matches.remove(id); setMatches((prev) => prev.filter((m) => m.id !== id)); } catch {}
+    try { await api.matches.remove(id); setMatches((prev) => prev.filter((m) => (m.match_id ?? m.id) !== id)); } catch (err) { console.error('Error:', err.message); }
   };
 
   const tabs = [
@@ -79,11 +80,11 @@ export default function MatchesPage() {
                   {(tab === 'new' ? newMatches : matches).map((m) => {
                     const other = m.other_user || m;
                     return (
-                      <Link key={m.id} to={`/chat/${m.id}`}
+                      <Link key={m.match_id ?? m.id} to={`/chat/${m.match_id ?? m.id}`}
                         className="relative bg-white dark:bg-dark-card rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-dark-border group hover:shadow-md transition">
                         <div className="aspect-[4/5] bg-gray-100 dark:bg-dark-surface">
-                          <img src={other.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=400&fit=crop'}
-                            alt="" className="w-full h-full object-cover" />
+                          <LazyImage src={other.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=400&fit=crop'}
+                            alt="" className="w-full h-full" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition" />
                         </div>
                         <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -93,7 +94,7 @@ export default function MatchesPage() {
                           )}
                         </div>
                         {tab === 'matches' && (
-                          <button onClick={(e) => { e.preventDefault(); removeMatch(m.id); }}
+                          <button onClick={(e) => { e.preventDefault(); removeMatch(m.match_id ?? m.id); }}
                             className="absolute top-2 right-2 p-1.5 bg-black/30 rounded-full text-white opacity-0 group-hover:opacity-100 transition hover:bg-red-500">
                             <FiTrash2 size={12} />
                           </button>
@@ -125,8 +126,8 @@ export default function MatchesPage() {
                             const u = l.user || l;
                             return (
                               <div key={u.id || i} className="relative">
-                                <img src={u.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'}
-                                  alt="" className="aspect-square rounded-xl object-cover blur-peek bg-gray-100" />
+                                <LazyImage src={u.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'}
+                                  alt="" className="aspect-square rounded-xl bg-gray-100" />
                               </div>
                             );
                           })}
@@ -146,8 +147,8 @@ export default function MatchesPage() {
                     const u = l.user || l;
                     return (
                       <div key={u.id} className="flex items-center gap-3 bg-white dark:bg-dark-card rounded-2xl p-3 shadow-sm border border-gray-100 dark:border-dark-border">
-                        <img src={u.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop'}
-                          alt="" className="w-14 h-14 rounded-xl object-cover bg-gray-100" />
+                        <LazyImage src={u.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop'}
+                          alt="" className="w-14 h-14 rounded-xl bg-gray-100 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-gray-900 dark:text-white truncate">{u.name || u.first_name}</p>
                           <p className="text-sm text-gray-500 dark:text-dark-muted">{u.age || '?'} · {u.location || 'Malawi'}</p>

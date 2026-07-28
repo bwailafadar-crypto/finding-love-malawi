@@ -31,6 +31,7 @@ const auth = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.error('Error:', err.message);
     if (err.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token' });
     }

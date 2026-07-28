@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { FiEdit3, FiSettings, FiShield, FiLogOut, FiHeart, FiStar, FiCheckCircle, FiChevronRight, FiShare2, FiCopy, FiSun, FiMoon } from 'react-icons/fi';
+import { FiEdit3, FiSettings, FiShield, FiLogOut, FiHeart, FiStar, FiCheckCircle, FiChevronRight, FiShare2, FiCopy, FiSun, FiMoon, FiZap } from 'react-icons/fi';
 import api from '../utils/api';
 
 export default function ProfilePage() {
@@ -27,7 +27,7 @@ export default function ProfilePage() {
         const mList = Array.isArray(m) ? m : m.matches || [];
         const lList = Array.isArray(l) ? l : l.likes || [];
         setStats({ matches: mList.length, likes: lList.length });
-      } catch {}
+      } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };
     load();
@@ -38,9 +38,9 @@ export default function ProfilePage() {
   const shareProfile = async () => {
     const url = `${window.location.origin}/profile/${user?.id}`;
     if (navigator.share) {
-      try { await navigator.share({ title: `Check out ${profile?.name || 'my'} profile`, url }); } catch {}
+      try { await navigator.share({ title: `Check out ${profile?.name || 'my'} profile`, url }); } catch (err) { console.error('Error:', err.message); }
     } else {
-      try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+      try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (err) { console.error('Error:', err.message); }
     }
   };
 
@@ -153,6 +153,13 @@ export default function ProfilePage() {
           <FiSettings size={20} className="text-gray-400" />
           <span className="flex-1 text-sm font-semibold text-gray-700 dark:text-dark-text">Settings</span>
           <FiChevronRight size={16} className="text-gray-300" />
+        </Link>
+        <Link to="/premium" className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface transition border-t border-gray-50 dark:border-dark-border">
+          <div className="w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded flex items-center justify-center">
+            <FiZap size={12} className="text-white" />
+          </div>
+          <span className="flex-1 text-sm font-semibold text-gray-700 dark:text-dark-text">Go Premium</span>
+          <span className="text-xs font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full">NEW</span>
         </Link>
       </div>
 

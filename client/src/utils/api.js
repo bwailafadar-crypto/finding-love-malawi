@@ -10,8 +10,9 @@ class ApiClient {
     };
 
     const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    let data;
+    try { data = await res.json(); } catch { data = {}; }
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
   }
 
@@ -25,6 +26,8 @@ class ApiClient {
     login: (d) => this.post('/auth/login', d),
     me: () => this.get('/auth/me'),
     logout: () => this.post('/auth/logout'),
+    forgotPassword: (email) => this.post('/auth/forgot-password', { email }),
+    resetPassword: (token, password) => this.post('/auth/reset-password', { token, password }),
   };
 
   profiles = {
@@ -93,6 +96,72 @@ class ApiClient {
     post: (content, contentType) => this.post('/stories', { content, contentType }),
     view: (storyId) => this.post(`/stories/${storyId}/view`),
     delete: (storyId) => this.delete(`/stories/${storyId}`),
+  };
+
+  payments = {
+    createCheckout: (sessionData) => this.post('/payments/create-checkout', sessionData),
+    status: () => this.get('/payments/status'),
+    plans: () => this.get('/subscriptions/plans'),
+  };
+
+  intros = {
+    get: (userId) => this.get(`/intros/${userId}`),
+    delete: () => this.delete('/intros'),
+    upload: async (file) => {
+      const formData = new FormData();
+      formData.append('video', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/intros`, {
+        method: 'POST',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    },
+  };
+
+  upload = {
+    photo: async (file) => {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/upload/photo`, {
+        method: 'POST',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    },
+    photos: async (files) => {
+      const formData = new FormData();
+      files.forEach((f) => formData.append('photos', f));
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/upload/photos`, {
+        method: 'POST',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    },
+    audio: async (file) => {
+      const formData = new FormData();
+      formData.append('audio', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/upload/audio`, {
+        method: 'POST',
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      return data;
+    },
   };
 }
 

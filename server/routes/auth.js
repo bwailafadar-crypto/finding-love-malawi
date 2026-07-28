@@ -1,10 +1,12 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('../config/database');
 const { sqlite } = require('../config/database');
 const auth = require('../middleware/auth');
 const { isValidEmail, isValidPassword, isValidDOB, sanitizeString } = require('../middleware/validation');
+const emailService = require('../services/email');
 
 const router = express.Router();
 const authLimiter = router.parent ? router.parent.get('authLimiter') : null;
@@ -85,6 +87,10 @@ router.post('/register', async (req, res) => {
         token,
         user: { id: userId, email: normalizedEmail, firstName: cleanFirstName, lastName: cleanLastName },
       });
+
+      try {
+        await emailService.sendWelcomeEmail(normalizedEmail, cleanFirstName);
+      } catch (_) {}
     } catch (err) {
       sqlite.exec('ROLLBACK');
       throw err;
@@ -174,6 +180,87 @@ router.post('/logout', auth, async (req, res) => {
     db.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?', [req.user.id]);
     res.json({ message: 'Logged out successfully' });
   } catch (err) {
+    console.error('Error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const result = db.query('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
+
+    // Always return success to prevent email enumeration
+    if (result.rows.length === 0) {
+      return res.json({ message: 'If an account exists, a reset link has been sent' });
+    }
+
+    const userId = result.rows[0].id;
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+    // Delete any existing reset tokens for this user
+    db.query('DELETE FROM password_resets WHERE user_id = ?', [userId]);
+
+    // Store new token
+    db.query('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)', [userId, token, expiresAt]);
+
+    const resetLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    try {
+      await emailService.sendPasswordResetEmail(normalizedEmail, resetLink);
+    } catch (_) {}
+
+    res.json({ message: 'If an account exists, a reset link has been sent', _dev_token: process.env.NODE_ENV !== 'production' ? token : undefined });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and password required' });
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters with letters and numbers' });
+    }
+
+    const result = db.query(
+      'SELECT id, user_id, expires_at FROM password_resets WHERE token = ?',
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const reset = result.rows[0];
+    if (new Date(reset.expires_at) < new Date()) {
+      db.query('DELETE FROM password_resets WHERE id = ?', [reset.id]);
+      return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    try {
+      sqlite.exec('BEGIN');
+      db.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, reset.user_id]);
+      db.query('DELETE FROM password_resets WHERE user_id = ?', [reset.user_id]);
+      sqlite.exec('COMMIT');
+    } catch (err) {
+      sqlite.exec('ROLLBACK');
+      throw err;
+    }
+
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

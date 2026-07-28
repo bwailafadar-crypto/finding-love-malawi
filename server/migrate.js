@@ -89,6 +89,19 @@ try {
     else throw e;
   }
 
+  // Add password_resets table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  console.log('✓ password_resets table created');
+
   console.log('\n✓ All migrations complete!');
 } catch (err) {
   console.error('Migration error:', err.message);

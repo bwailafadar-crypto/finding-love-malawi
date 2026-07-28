@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiArrowRight, FiArrowLeft, FiCheck, FiCamera, FiMapPin } from 'react-icons/fi';
+import { FiArrowRight, FiArrowLeft, FiCheck, FiCamera, FiMapPin, FiUpload } from 'react-icons/fi';
 import api from '../utils/api';
 
 const INTERESTS = ['Music','Dancing','Travel','Cooking','Sports','Reading','Movies','Art','Fashion','Gaming','Nature','Photography','Technology','Food','Coffee','Yoga','Fitness','Hiking','Swimming','Church'];
 
-const STEPS = ['photos', 'about', 'interests', 'preferences'];
+const PROMPTS = [
+  'A perfect first date is...',
+  "I'm looking for someone who...",
+  'My most irrational fear is...',
+  'The way to my heart is...',
+  'I geek out on...',
+  'My simple pleasures are...',
+];
+
+const STEPS = ['photos', 'about', 'interests', 'prompts', 'preferences'];
 
 export default function OnboardingPage() {
   const { user } = useAuth();
@@ -18,12 +27,15 @@ export default function OnboardingPage() {
     location: '',
     occupation: '',
     interests: [],
+    prompts: PROMPTS.map((q) => ({ question: q, answer: '' })),
     lookingFor: 'everyone',
     ageMin: 18,
     ageMax: 50,
   });
   const [newPhoto, setNewPhoto] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const toggleInterest = (i) => {
     setForm((f) => ({
@@ -32,10 +44,32 @@ export default function OnboardingPage() {
     }));
   };
 
+  const updatePrompt = (index, value) => {
+    setForm((f) => {
+      const prompts = [...f.prompts];
+      prompts[index] = { ...prompts[index], answer: value.slice(0, 150) };
+      return { ...f, prompts };
+    });
+  };
+
   const addPhoto = () => {
     if (!newPhoto.trim() || form.photos.length >= 9) return;
     setForm((f) => ({ ...f, photos: [...f.photos, newPhoto.trim()] }));
     setNewPhoto('');
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const remaining = 9 - form.photos.length;
+    const toUpload = files.slice(0, remaining);
+    setUploading(true);
+    try {
+      const result = await api.upload.photos(toUpload);
+      setForm((f) => ({ ...f, photos: [...f.photos, ...result.photos] }));
+    } catch (err) { console.error('Error:', err.message); }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleFinish = async () => {
@@ -44,20 +78,22 @@ export default function OnboardingPage() {
       await api.profiles.update({
         photos: form.photos,
         bio: form.bio,
-        location: form.location,
+        locationName: form.location,
         occupation: form.occupation,
         interests: form.interests,
+        prompts: form.prompts.filter((p) => p.answer.trim()),
         lookingFor: form.lookingFor,
         ageMin: form.ageMin,
         ageMax: form.ageMax,
       });
       navigate('/discover');
-    } catch {}
+    } catch (err) { console.error('Error:', err.message); }
     setSaving(false);
   };
 
+  const promptsAnswered = form.prompts.filter((p) => p.answer.trim()).length;
   const progress = ((step + 1) / STEPS.length) * 100;
-  const canNext = step === 0 ? form.photos.length > 0 : step === 1 ? true : step === 2 ? form.interests.length > 0 : true;
+  const canNext = step === 0 ? form.photos.length > 0 : step === 1 ? true : step === 2 ? form.interests.length > 0 : step === 3 ? promptsAnswered >= 2 : true;
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col">
@@ -87,16 +123,24 @@ export default function OnboardingPage() {
                 </div>
               ))}
               {form.photos.length < 9 && (
-                <div className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 dark:border-dark-border flex flex-col items-center justify-center text-gray-300">
-                  <FiCamera size={28} />
-                  <span className="text-xs mt-1 font-medium">Add</span>
-                </div>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 dark:border-dark-border flex flex-col items-center justify-center text-gray-300 hover:border-pink-400 transition disabled:opacity-50">
+                  {uploading ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-pink-500 border-t-transparent" />
+                  ) : (
+                    <>
+                      <FiUpload size={24} />
+                      <span className="text-xs mt-1 font-medium">Upload</span>
+                    </>
+                  )}
+                </button>
               )}
             </div>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
             <div className="flex gap-2">
               <input type="url" value={newPhoto} onChange={(e) => setNewPhoto(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addPhoto()}
-                placeholder="Paste image URL"
+                placeholder="Or paste image URL"
                 className="flex-1 px-4 py-3 bg-gray-100 dark:bg-dark-surface rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" />
               <button onClick={addPhoto} className="px-4 py-3 bg-pink-500 text-white rounded-xl font-bold text-sm">Add</button>
             </div>
@@ -149,6 +193,29 @@ export default function OnboardingPage() {
         )}
 
         {step === 3 && (
+          <div className="fade-in">
+            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Show your personality</h2>
+            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Answer at least 2 prompts to let matches know the real you.</p>
+            <div className="space-y-4">
+              {form.prompts.map((prompt, i) => (
+                <div key={i} className="bg-gray-100 dark:bg-dark-surface rounded-2xl p-4">
+                  <label className="block text-sm font-bold text-pink-500 mb-2">{prompt.question}</label>
+                  <textarea
+                    value={prompt.answer}
+                    onChange={(e) => updatePrompt(i, e.target.value)}
+                    rows={2}
+                    placeholder="Your answer..."
+                    className="w-full px-4 py-3 bg-white dark:bg-dark-bg rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                  />
+                  <p className="text-xs text-gray-400 text-right mt-1">{prompt.answer.length}/150</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-3">{promptsAnswered}/2 minimum answered</p>
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="fade-in">
             <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Set your preferences</h2>
             <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Who would you like to see?</p>

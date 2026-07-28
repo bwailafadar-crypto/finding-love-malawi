@@ -1,0 +1,14 @@
+node_modules
+client/node_modules
+client/dist
+.git
+.gitignore
+.env
+*.db
+*.db-shm
+*.db-wal
+uploads
+start.sh
+Procfile
+render.yaml
+README.md

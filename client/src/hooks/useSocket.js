@@ -1,27 +1,50 @@
 import { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 
-let socket = null;
+let globalSocket = null;
 
 export function useSocket() {
   const [connected, setConnected] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
-    if (socket?.connected) return;
-
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      if (globalSocket) { globalSocket.disconnect(); globalSocket = null; }
+      return;
+    }
 
-    import('socket.io-client').then(({ io }) => {
-      if (socket?.connected) return;
-      socket = io('/', { auth: { token }, transports: ['websocket', 'polling'] });
-      socket.on('connect', () => setConnected(true));
-      socket.on('disconnect', () => setConnected(false));
-    });
+    if (globalSocket?.connected) {
+      socketRef.current = globalSocket;
+      setConnected(true);
+      return;
+    }
 
-    return () => {};
+    if (!globalSocket) {
+      globalSocket = io('/', { auth: { token }, transports: ['websocket', 'polling'] });
+    }
+
+    socketRef.current = globalSocket;
+
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+
+    globalSocket.on('connect', onConnect);
+    globalSocket.on('disconnect', onDisconnect);
+
+    if (globalSocket.connected) setConnected(true);
+
+    return () => {
+      globalSocket?.off('connect', onConnect);
+      globalSocket?.off('disconnect', onDisconnect);
+    };
   }, []);
 
-  return socket;
+  return socketRef.current || globalSocket;
 }
 
-export function getSocket() { return socket; }
+export function disconnectSocket() {
+  if (globalSocket) { globalSocket.disconnect(); globalSocket = null; }
+}
+
+export function getSocket() { return globalSocket; }

@@ -68,6 +68,7 @@ router.get('/new', auth, async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -81,6 +82,7 @@ router.delete('/:matchId', auth, async (req, res) => {
     );
     res.json({ message: 'Match removed' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

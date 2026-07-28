@@ -25,6 +25,7 @@ router.get('/current', auth, async (req, res) => {
     const plan = result.rows[0] || { plan: 'free' };
     res.json({ ...plan, features: plans[plan.plan] });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -56,6 +57,7 @@ router.post('/subscribe', auth, async (req, res) => {
 
     res.json({ message: `Subscribed to ${plan} plan`, features: plans[plan] });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -72,6 +74,7 @@ router.post('/boost', auth, async (req, res) => {
 
     res.json({ message: 'Profile boosted for 30 minutes' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

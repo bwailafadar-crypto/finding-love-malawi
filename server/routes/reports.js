@@ -6,9 +6,10 @@ const router = express.Router();
 
 router.get('/', auth, async (req, res) => {
   try {
-    const result = db.query('SELECT * FROM reports ORDER BY created_at DESC');
+    const result = db.query('SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at DESC', [req.user.id]);
     res.json(result.rows);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -28,6 +29,7 @@ router.post('/', auth, async (req, res) => {
 
     res.status(201).json({ message: 'Report submitted' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -36,9 +38,8 @@ router.post('/block', auth, async (req, res) => {
   try {
     const { blockedId } = req.body;
 
-    if (!blockedId) {
-      return res.status(400).json({ error: 'User ID required' });
-    }
+    if (!blockedId) return res.status(400).json({ error: 'User ID required' });
+    if (parseInt(blockedId) === req.user.id) return res.status(400).json({ error: 'Cannot block yourself' });
 
     db.query(
       'INSERT OR IGNORE INTO blocks (blocker_id, blocked_id) VALUES (?, ?)',
@@ -53,6 +54,7 @@ router.post('/block', auth, async (req, res) => {
 
     res.json({ message: 'User blocked' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -65,6 +67,7 @@ router.delete('/block/:blockedId', auth, async (req, res) => {
     );
     res.json({ message: 'User unblocked' });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

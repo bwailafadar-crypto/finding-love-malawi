@@ -20,7 +20,7 @@ router.get('/', auth, async (req, res) => {
       [req.user.id]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Get stories for a specific user
@@ -36,7 +36,7 @@ router.get('/user/:userId', auth, async (req, res) => {
       [req.params.userId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Post a story
@@ -55,7 +55,7 @@ router.post('/', auth, async (req, res) => {
     );
 
     res.status(201).json({ id: result.rows[0].id, content, contentType, expires_at: expiresAt });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
 // View a story
@@ -64,7 +64,7 @@ router.post('/:storyId/view', auth, async (req, res) => {
     db.query('INSERT OR IGNORE INTO story_views (story_id, viewer_id) VALUES (?, ?)',
       [req.params.storyId, req.user.id]);
     res.json({ viewed: true });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Delete a story
@@ -72,7 +72,7 @@ router.delete('/:storyId', auth, async (req, res) => {
   try {
     db.query('DELETE FROM stories WHERE id = ? AND user_id = ?', [req.params.storyId, req.user.id]);
     res.json({ deleted: true });
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

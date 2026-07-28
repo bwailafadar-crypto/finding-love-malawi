@@ -2,7 +2,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 require('dotenv').config();
 
-const dbPath = path.join(__dirname, '..', 'finding_love.db');
+const dbPath = process.env.DISK_PATH
+  ? path.join(process.env.DISK_PATH, 'finding_love.db')
+  : path.join(__dirname, '..', 'finding_love.db');
 const sqlite = new Database(dbPath);
 
 sqlite.pragma('journal_mode = WAL');

@@ -22,7 +22,7 @@ export default function AdminPage() {
         setUsers(u.users || []);
         setReports(r.reports || []);
         setStats({ totalUsers: (u.users || []).length, totalReports: (r.reports || []).length, activeReports: (r.reports || []).filter((x) => x.status === 'pending').length });
-      } catch {}
+      } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };
     load();
@@ -33,14 +33,14 @@ export default function AdminPage() {
       if (banned) await api.admin.unbanUser(id);
       else await api.admin.banUser(id);
       setUsers((prev) => prev.map((u) => u.id === id ? { ...u, is_active: banned } : u));
-    } catch {}
+    } catch (err) { console.error('Error:', err.message); }
   };
 
   const resolveReport = async (id) => {
     try {
       await api.admin.resolveReport(id);
       setReports((prev) => prev.map((r) => r.id === id ? { ...r, status: 'resolved' } : r));
-    } catch {}
+    } catch (err) { console.error('Error:', err.message); }
   };
 
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-80px)]"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pink-500 border-t-transparent" /></div>;

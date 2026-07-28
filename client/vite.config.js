@@ -13,9 +13,21 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': 'http://localhost:5000',
+      '/uploads': 'http://localhost:5000',
       '/socket.io': {
         target: 'http://localhost:5000',
         ws: true,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-socket': ['socket.io-client'],
+          'vendor-icons': ['react-icons/fi'],
+        },
       },
     },
   },

@@ -21,7 +21,7 @@ export default function VerifyPage() {
         ]);
         setStatus(s?.status || 'unverified');
         if (c) setChallenge(c);
-      } catch {}
+      } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };
     load();
@@ -32,7 +32,7 @@ export default function VerifyPage() {
     setSubmitting(true);
     setMsg('');
     try {
-      await api.verification.submit(photoUrl.trim(), challenge.id);
+      await api.verification.submit(photoUrl.trim(), challenge?.challenge?.id);
       setMsg('Verification submitted! We will review it shortly.');
       setStatus('pending');
     } catch (err) { setMsg(err.message || 'Failed to submit'); }
@@ -40,7 +40,7 @@ export default function VerifyPage() {
   };
 
   const newChallenge = async () => {
-    try { const c = await api.verification.challenge(); setChallenge(c); } catch {}
+    try { const c = await api.verification.challenge(); setChallenge(c); } catch (err) { console.error('Error:', err.message); }
   };
 
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-80px)]"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pink-500 border-t-transparent" /></div>;
@@ -88,7 +88,7 @@ export default function VerifyPage() {
               <div className="w-24 h-24 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FiCamera size={40} className="text-pink-500" />
               </div>
-              <p className="text-lg font-bold text-gray-800">{challenge.instruction}</p>
+              <p className="text-lg font-bold text-gray-800">{challenge?.challenge?.instruction}</p>
               <p className="text-sm text-gray-500 mt-2">Take a selfie matching this pose to verify your identity</p>
             </div>
             <button onClick={newChallenge} className="w-full py-2.5 text-pink-500 font-bold text-sm border border-pink-200 rounded-xl hover:bg-pink-50 transition flex items-center justify-center gap-2">

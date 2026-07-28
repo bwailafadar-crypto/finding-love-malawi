@@ -46,6 +46,7 @@ router.get('/status', auth, async (req, res) => {
     const result = db.query('SELECT is_verified FROM profiles WHERE user_id = ?', [req.user.id]);
     res.json({ verified: result.rows[0]?.is_verified === 1 });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

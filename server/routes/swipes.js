@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
+const pushService = require('../services/push');
 
 const router = express.Router();
 
@@ -145,6 +146,14 @@ router.post('/', auth, async (req, res) => {
           );
           isMatch = true;
 
+          const swiperProfile = db.query('SELECT first_name FROM profiles WHERE user_id = ?', [req.user.id]);
+          const swipedProfile = db.query('SELECT first_name FROM profiles WHERE user_id = ?', [swipedId]);
+          const swiperName = swiperProfile.rows[0]?.first_name || 'Someone';
+          const swipedName = swipedProfile.rows[0]?.first_name || 'Someone';
+
+          pushService.sendPush(swipedId, "It's a Match! 🎉", `You matched with ${swiperName}!`, '/matches').catch(() => {});
+          pushService.sendPush(req.user.id, "It's a Match! 🎉", `You matched with ${swipedName}!`, '/matches').catch(() => {});
+
           // Get matched user info for the popup
           const matched = db.query(
             `SELECT p.first_name, p.photos, p.user_id
@@ -195,6 +204,7 @@ router.get('/likes', auth, async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -212,6 +222,7 @@ router.post('/rewind', auth, async (req, res) => {
 
     res.json({ message: 'Swipe rewound', swipedId: lastSwipe.rows[0].swiped_id });
   } catch (err) {
+    console.error('Error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
