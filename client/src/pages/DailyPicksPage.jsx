@@ -61,7 +61,7 @@ export default function DailyPicksPage() {
           <p className="text-sm mt-1">Complete your profile to get better matches</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {picks.map((p) => {
             const photo = p.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300&h=400&fit=crop';
             const isLiked = liked.has(p.id);

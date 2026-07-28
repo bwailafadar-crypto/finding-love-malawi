@@ -16,9 +16,8 @@ export function AuthProvider({ children }) {
       setUser(data);
     } catch (err) {
       console.error('Error:', err.message);
-      if (err.message.includes('401') || err.message.includes('Invalid token') || err.message.includes('not found')) {
-        localStorage.removeItem('token');
-      }
+      localStorage.removeItem('token');
+      setUser(null);
     } finally {
       setLoading(false);
     }

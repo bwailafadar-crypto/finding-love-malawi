@@ -55,7 +55,7 @@ export default function ProfilePage() {
   const photos = Array.isArray(profile?.photos) ? profile.photos : [];
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <div className="px-4 pt-4 pb-4 md:max-w-2xl lg:max-w-3xl mx-auto">
       {/* Profile header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="relative">

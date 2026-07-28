@@ -147,13 +147,15 @@ export default function useNotifications() {
   }, []);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     if (!('Notification' in window)) { setPermission('unsupported'); return; }
     setPermission(Notification.permission);
     if (Notification.permission === 'granted') {
       registerPushSubscription();
     }
     fetchNotifications();
-    const interval = setInterval(() => { if (!document.hidden) fetchNotifications(); }, 30000);
+    const interval = setInterval(() => { if (!document.hidden && localStorage.getItem('token')) fetchNotifications(); }, 30000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 

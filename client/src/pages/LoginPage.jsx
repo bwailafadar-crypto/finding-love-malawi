@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col transition-colors">
-      <div className="flex-1 flex flex-col justify-center px-8 max-w-md mx-auto w-full">
+      <div className="flex-1 flex flex-col justify-center px-8 max-w-md md:max-w-lg mx-auto w-full">
         <div className="mb-10">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Welcome back</h1>
           <p className="text-gray-500 dark:text-dark-muted mt-2">Sign in to continue</p>

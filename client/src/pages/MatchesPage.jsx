@@ -76,7 +76,7 @@ export default function MatchesPage() {
                   <p className="text-sm mt-1">Keep swiping to find someone special</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                   {(tab === 'new' ? newMatches : matches).map((m) => {
                     const other = m.other_user || m;
                     return (

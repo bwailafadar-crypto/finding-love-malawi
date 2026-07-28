@@ -243,7 +243,7 @@ export default function DiscoverPage() {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-1">
+    <div className="flex flex-col h-[calc(100vh-80px)] md:h-[calc(100vh-96px)] px-4 md:px-0 pt-1">
       {/* Story rings */}
       {storyGroups.length > 0 && (
         <div className="flex gap-3 overflow-x-auto py-3 scrollbar-hide">
@@ -308,7 +308,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* Card stack */}
-      <div className="relative flex-1 max-w-sm mx-auto w-full select-none" style={{ perspective: '1000px' }}>
+      <div className="relative flex-1 max-w-sm md:max-w-md lg:max-w-lg mx-auto w-full select-none" style={{ perspective: '1000px', maxHeight: '600px' }}>
         {/* Third card (deepest) */}
         {sortedProfiles[currentIndex + 2] && (
           <div className="absolute inset-0 rounded-[2rem] overflow-hidden shadow-sm scale-[0.88] translate-y-4 opacity-30">

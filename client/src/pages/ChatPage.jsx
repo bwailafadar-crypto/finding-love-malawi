@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
-import { FiArrowLeft, FiSend, FiPhone, FiVideo, FiMoreVertical, FiInfo, FiSmile, FiCheck, FiClock, FiMic, FiPlay, FiPause } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiPhone, FiVideo, FiMoreVertical, FiInfo, FiSmile, FiCheck, FiClock, FiMic, FiPlay, FiPause, FiMessageCircle } from 'react-icons/fi';
 import api from '../utils/api';
 import VoiceRecorder from '../components/VoiceRecorder';
 import LazyImage from '../components/LazyImage';
@@ -53,6 +53,7 @@ export default function ChatPage() {
   const socket = useSocket();
   const navigate = useNavigate();
   const [match, setMatch] = useState(null);
+  const [allMatches, setAllMatches] = useState([]);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,6 +86,7 @@ export default function ChatPage() {
           api.messages.list(matchId).catch(() => []),
         ]);
         const list = Array.isArray(mRes) ? mRes : mRes.matches || [];
+        setAllMatches(list);
         const m = list.find((x) => String(x.match_id ?? x.id) === String(matchId));
         if (m) setMatch(m);
         const msgs = Array.isArray(msgRes) ? msgRes : msgRes.messages || [];
@@ -215,10 +217,55 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
+    <div className="flex h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
+      {/* Desktop sidebar - match list */}
+      <div className="hidden lg:flex lg:flex-col lg:w-80 xl:w-96 bg-white dark:bg-dark-card border-r border-gray-100 dark:border-dark-border flex-shrink-0">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-dark-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+              <FiMessageCircle size={14} className="text-white" />
+            </div>
+            <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Messages</h2>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {allMatches.map((m) => {
+            const ou = m.other_user || {};
+            const otherName = ou.first_name ? `${ou.first_name} ${ou.last_name || ''}`.trim() : m.first_name ? `${m.first_name} ${m.last_name || ''}`.trim() : 'Match';
+            const otherPhoto = ou.photos?.[0] || m.photos?.[0] || '';
+            const isActive = String(m.match_id ?? m.id) === String(matchId);
+            return (
+              <button key={m.match_id ?? m.id} onClick={() => navigate(`/chat/${m.match_id ?? m.id}`)}
+                className={`w-full flex items-center gap-3 px-5 py-3 transition text-left ${
+                  isActive
+                    ? 'bg-pink-50 dark:bg-pink-900/20 border-r-2 border-pink-500'
+                    : 'hover:bg-gray-50 dark:hover:bg-dark-surface'
+                }`}>
+                <div className="relative flex-shrink-0">
+                  <LazyImage src={otherPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop'}
+                    alt="" className="w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface" />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-dark-card" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold text-sm truncate ${isActive ? 'text-pink-600 dark:text-pink-400' : 'text-gray-900 dark:text-white'}`}>{otherName}</p>
+                  <p className="text-xs text-gray-400 dark:text-dark-muted truncate">Tap to open chat</p>
+                </div>
+              </button>
+            );
+          })}
+          {allMatches.length === 0 && (
+            <div className="px-5 py-12 text-center text-gray-400 dark:text-dark-muted">
+              <p className="text-sm">No matches yet</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chat area */}
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border sticky top-0 z-10">
-        <button onClick={() => navigate(-1)} className="p-1 text-gray-600 dark:text-dark-muted hover:text-gray-900 dark:hover:text-white">
+        <button onClick={() => navigate(-1)} className="p-1 text-gray-600 dark:text-dark-muted hover:text-gray-900 dark:hover:text-white md:hidden">
           <FiArrowLeft size={22} />
         </button>
         <div className="relative">
@@ -489,6 +536,7 @@ export default function ChatPage() {
           <style>{`@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </div>
       )}
+    </div>
     </div>
   );
 }

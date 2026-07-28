@@ -102,8 +102,8 @@ export default function ProfileEditPage() {
   if (loading) return <div className="flex justify-center items-center h-[calc(100vh-80px)]"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pink-500 border-t-transparent" /></div>;
 
   return (
-    <div className="h-[calc(100vh-80px)] overflow-y-auto px-4 pt-4 pb-24">
-      <div className="max-w-md mx-auto">
+    <div className="h-[calc(100vh-80px)] md:h-[calc(100vh-96px)] overflow-y-auto px-4 pt-4 pb-24">
+      <div className="max-w-md md:max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate(-1)} className="p-2 text-gray-600 dark:text-dark-muted hover:text-gray-900 dark:hover:text-white"><FiArrowLeft size={22} /></button>
           <h1 className="text-xl font-extrabold text-gray-900 dark:text-white">Edit Profile</h1>
