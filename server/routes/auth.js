@@ -3,7 +3,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../config/database');
-const { sqlite } = require('../config/database');
 const auth = require('../middleware/auth');
 const { isValidEmail, isValidPassword, isValidDOB, sanitizeString } = require('../middleware/validation');
 const emailService = require('../services/email');
@@ -58,43 +57,34 @@ router.post('/register', async (req, res) => {
     // Hash password with 12 rounds
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+    const insertUser = db.query(
+      'INSERT INTO users (email, password_hash) VALUES (?, ?)',
+      [normalizedEmail, passwordHash]
+    );
+    const userId = insertUser.rows[0].id;
+
+    db.query(
+      'INSERT INTO profiles (user_id, first_name, last_name, date_of_birth, gender) VALUES (?, ?, ?, ?, ?)',
+      [userId, cleanFirstName, cleanLastName, dateOfBirth, gender]
+    );
+
+    db.query(
+      'INSERT INTO subscriptions (user_id, plan, expires_at) VALUES (?, ?, ?)',
+      [userId, 'free', null]
+    );
+
+    const token = jwt.sign({ userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
+
+    res.status(201).json({
+      token,
+      user: { id: userId, email: normalizedEmail, firstName: cleanFirstName, lastName: cleanLastName },
+    });
+
     try {
-      sqlite.exec('BEGIN');
-
-      const userResult = db.query(
-        'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-        [normalizedEmail, passwordHash]
-      );
-      const userId = userResult.rows[0].id;
-
-      db.query(
-        'INSERT INTO profiles (user_id, first_name, last_name, date_of_birth, gender) VALUES (?, ?, ?, ?, ?)',
-        [userId, cleanFirstName, cleanLastName, dateOfBirth, gender]
-      );
-
-      db.query(
-        'INSERT INTO subscriptions (user_id, plan, expires_at) VALUES (?, ?, ?)',
-        [userId, 'free', null]
-      );
-
-      sqlite.exec('COMMIT');
-
-      const token = jwt.sign({ userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-      });
-
-      res.status(201).json({
-        token,
-        user: { id: userId, email: normalizedEmail, firstName: cleanFirstName, lastName: cleanLastName },
-      });
-
-      try {
-        await emailService.sendWelcomeEmail(normalizedEmail, cleanFirstName);
-      } catch (_) {}
-    } catch (err) {
-      sqlite.exec('ROLLBACK');
-      throw err;
-    }
+      await emailService.sendWelcomeEmail(normalizedEmail, cleanFirstName);
+    } catch (_) {}
   } catch (err) {
     console.error('Register error:', err.message, err.stack);
     res.status(500).json({ error: 'Server error during registration', debug: err.message });
@@ -248,15 +238,8 @@ router.post('/reset-password', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    try {
-      sqlite.exec('BEGIN');
-      db.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, reset.user_id]);
-      db.query('DELETE FROM password_resets WHERE user_id = ?', [reset.user_id]);
-      sqlite.exec('COMMIT');
-    } catch (err) {
-      sqlite.exec('ROLLBACK');
-      throw err;
-    }
+    db.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, reset.user_id]);
+    db.query('DELETE FROM password_resets WHERE user_id = ?', [reset.user_id]);
 
     res.json({ message: 'Password reset successful. You can now log in.' });
   } catch (err) {
