@@ -51,6 +51,8 @@ export default function ProfilePage() {
   );
 
   const photo = profile?.photos?.[0] || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=500&fit=crop';
+  const interests = Array.isArray(profile?.interests) ? profile.interests : [];
+  const photos = Array.isArray(profile?.photos) ? profile.photos : [];
 
   return (
     <div className="px-4 pt-4 pb-4">
@@ -103,11 +105,11 @@ export default function ProfilePage() {
       )}
 
       {/* Interests */}
-      {profile?.interests?.length > 0 && (
+      {interests.length > 0 && (
         <div className="bg-white dark:bg-dark-card rounded-2xl p-4 mb-4 shadow-sm border border-gray-100 dark:border-dark-border">
           <h3 className="text-xs font-bold text-gray-400 dark:text-dark-muted uppercase tracking-wider mb-2">Interests</h3>
           <div className="flex flex-wrap gap-2">
-            {profile.interests.map((i) => (
+            {interests.map((i) => (
               <span key={i} className="px-3 py-1.5 bg-pink-50 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 text-xs font-semibold rounded-full">{i}</span>
             ))}
           </div>
@@ -115,11 +117,11 @@ export default function ProfilePage() {
       )}
 
       {/* Photos */}
-      {profile?.photos?.length > 1 && (
+      {photos.length > 1 && (
         <div className="bg-white dark:bg-dark-card rounded-2xl p-4 mb-4 shadow-sm border border-gray-100 dark:border-dark-border">
-          <h3 className="text-xs font-bold text-gray-400 dark:text-dark-muted uppercase tracking-wider mb-2">Photos ({profile.photos.length})</h3>
+          <h3 className="text-xs font-bold text-gray-400 dark:text-dark-muted uppercase tracking-wider mb-2">Photos ({photos.length})</h3>
           <div className="grid grid-cols-3 gap-2">
-            {profile.photos.map((p, i) => (
+            {photos.map((p, i) => (
               <img key={i} src={p} alt="" className="aspect-square rounded-xl object-cover bg-gray-100" loading="lazy" />
             ))}
           </div>

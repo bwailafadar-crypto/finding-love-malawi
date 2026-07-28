@@ -23,19 +23,21 @@ export default function ProfileEditPage() {
     const load = async () => {
       try {
         const p = await api.profiles.get();
-        if (p) setForm({
-          name: p.first_name || '',
-          bio: p.bio || '',
-          location: p.location_name || '',
-          occupation: p.occupation || '',
-          height: p.height?.toString() || '',
-          interests: Array.isArray(p.interests) ? p.interests : [],
-          photos: Array.isArray(p.photos) ? p.photos : [],
-        });
-        try {
-          const intro = await api.intros.get(p.user_id || p.id);
-          setVideoIntro(intro);
-        } catch { setVideoIntro(null); }
+        if (p) {
+          setForm({
+            name: p.first_name || '',
+            bio: p.bio || '',
+            location: p.location_name || '',
+            occupation: p.occupation || '',
+            height: p.height?.toString() || '',
+            interests: Array.isArray(p.interests) ? p.interests : [],
+            photos: Array.isArray(p.photos) ? p.photos : [],
+          });
+          try {
+            const intro = await api.intros.get(p.user_id || p.id);
+            setVideoIntro(intro);
+          } catch { setVideoIntro(null); }
+        }
       } catch (err) { console.error('Error:', err.message); }
       setLoading(false);
     };

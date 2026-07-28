@@ -64,12 +64,11 @@ export default function DiscoverPage() {
       try {
         const data = await api.stories.feed();
         const list = Array.isArray(data) ? data : [];
-        const grouped = list.reduce((acc, s) => {
+          const grouped = list.reduce((acc, s) => {
           const uid = s.user_id;
           if (!acc[uid]) {
-            let parsed = [];
-            try { parsed = typeof s.photos === 'string' ? JSON.parse(s.photos || '[]') : (s.photos || []); } catch { parsed = []; }
-            acc[uid] = { user: { id: uid, first_name: s.first_name, photos: parsed }, stories: [], viewed: s.viewed };
+            const photos = Array.isArray(s.photos) ? s.photos : [];
+            acc[uid] = { user: { id: uid, first_name: s.first_name, photos }, stories: [], viewed: !!s.viewed };
           }
           acc[uid].stories.push(s);
           if (s.viewed) acc[uid].viewed = true;

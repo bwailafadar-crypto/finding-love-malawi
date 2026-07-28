@@ -4,6 +4,12 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+function parseJsonField(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  try { return JSON.parse(val); } catch { return []; }
+}
+
 // Get stories feed (all active stories from users, ordered by most recent)
 router.get('/', auth, async (req, res) => {
   try {
@@ -19,7 +25,8 @@ router.get('/', auth, async (req, res) => {
        LIMIT 50`,
       [req.user.id]
     );
-    res.json(result.rows);
+    const rows = result.rows.map(r => ({ ...r, photos: parseJsonField(r.photos) }));
+    res.json(rows);
   } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -35,7 +42,8 @@ router.get('/user/:userId', auth, async (req, res) => {
        ORDER BY s.created_at ASC`,
       [req.params.userId]
     );
-    res.json(result.rows);
+    const rows = result.rows.map(r => ({ ...r, photos: parseJsonField(r.photos) }));
+    res.json(rows);
   } catch (err) { console.error('Error:', err.message); res.status(500).json({ error: 'Server error' }); }
 });
 
