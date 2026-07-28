@@ -105,6 +105,10 @@ class ApiClient {
     plans: () => this.get('/subscriptions/plans'),
   };
 
+  users = {
+    online: () => this.get('/users/online'),
+  };
+
   intros = {
     get: (userId) => this.get(`/intros/${userId}`),
     delete: () => this.delete('/intros'),

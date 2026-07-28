@@ -26,6 +26,7 @@ const StoriesPage = lazy(() => import('./pages/StoriesPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const PremiumPage = lazy(() => import('./pages/PremiumPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
 
 function PageLoader() {
   return (
@@ -78,6 +79,7 @@ function AnimatedRoutes() {
           <Route path="/admin" element={<ProtectedRoute><AppLayout><PageTransition><AdminPage /></PageTransition></AppLayout></ProtectedRoute>} />
           <Route path="/daily-picks" element={<ProtectedRoute><AppLayout><PageTransition><DailyPicksPage /></PageTransition></AppLayout></ProtectedRoute>} />
           <Route path="/stories" element={<ProtectedRoute><AppLayout><PageTransition><StoriesPage /></PageTransition></AppLayout></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute><AppLayout><PageTransition><UsersPage /></PageTransition></AppLayout></ProtectedRoute>} />
           <Route path="/premium" element={<ProtectedRoute><PageTransition><PremiumPage /></PageTransition></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/discover" />} />
           </Routes>

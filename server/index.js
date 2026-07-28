@@ -34,6 +34,7 @@ const uploadRoutes = require('./routes/upload');
 const paymentRoutes = require('./routes/payments');
 const pushRoutes = require('./routes/push');
 const introRoutes = require('./routes/intros');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +104,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/intros', introRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
 app.get('/api/health', (req, res) => {
