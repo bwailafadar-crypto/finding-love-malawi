@@ -25,7 +25,14 @@ export default function RegisterPage() {
       const dateOfBirth = `${birthYear}-01-01`;
       await register({ firstName: form.firstName.trim(), email: form.email.trim().toLowerCase(), password: form.password, dateOfBirth, gender: form.gender });
       navigate('/onboarding');
-    } catch (err) { setError(err.message || 'Registration failed'); }
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('already') || msg.includes('409')) {
+        setError('An account with this email already exists.');
+      } else {
+        setError(msg || 'Registration failed. Please try again.');
+      }
+    }
     setLoading(false);
   };
 

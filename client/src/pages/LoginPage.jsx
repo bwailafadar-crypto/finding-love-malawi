@@ -20,7 +20,16 @@ export default function LoginPage() {
     try {
       await login(email.trim().toLowerCase(), password);
       navigate('/discover');
-    } catch (err) { setError(err.message || 'Invalid credentials'); }
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('Invalid credentials') || msg.includes('401')) {
+        setError('Email or password is incorrect.');
+      } else if (msg.includes('deactivated')) {
+        setError('This account has been deactivated. Contact support.');
+      } else {
+        setError(msg || 'Something went wrong. Please try again.');
+      }
+    }
     setLoading(false);
   };
 
@@ -31,7 +40,12 @@ export default function LoginPage() {
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Welcome back</h1>
           <p className="text-gray-500 dark:text-dark-muted mt-2">Sign in to continue</p>
         </div>
-        {error && <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-xl font-medium">{error}</div>}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800/30">
+            <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
+            <Link to="/register" className="mt-2 inline-block text-sm text-pink-500 font-bold hover:underline">Create an account →</Link>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-dark-text mb-1.5">Email</label>
