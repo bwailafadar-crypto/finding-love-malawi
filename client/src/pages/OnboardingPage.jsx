@@ -1,21 +1,12 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiArrowRight, FiArrowLeft, FiCheck, FiCamera, FiMapPin, FiUpload } from 'react-icons/fi';
+import { FiArrowRight, FiArrowLeft, FiCheck, FiMapPin, FiUpload } from 'react-icons/fi';
 import api from '../utils/api';
 
 const INTERESTS = ['Music','Dancing','Travel','Cooking','Sports','Reading','Movies','Art','Fashion','Gaming','Nature','Photography','Technology','Food','Coffee','Yoga','Fitness','Hiking','Swimming','Church'];
 
-const PROMPTS = [
-  'A perfect first date is...',
-  "I'm looking for someone who...",
-  'My most irrational fear is...',
-  'The way to my heart is...',
-  'I geek out on...',
-  'My simple pleasures are...',
-];
-
-const STEPS = ['photos', 'about', 'interests', 'prompts', 'preferences'];
+const STEPS = ['photos', 'about', 'interests', 'preferences'];
 
 export default function OnboardingPage() {
   const { user } = useAuth();
@@ -27,7 +18,6 @@ export default function OnboardingPage() {
     location: '',
     occupation: '',
     interests: [],
-    prompts: PROMPTS.map((q) => ({ question: q, answer: '' })),
     lookingFor: 'everyone',
     ageMin: 18,
     ageMax: 50,
@@ -35,6 +25,7 @@ export default function OnboardingPage() {
   const [newPhoto, setNewPhoto] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
   const fileRef = useRef(null);
 
   const toggleInterest = (i) => {
@@ -42,14 +33,6 @@ export default function OnboardingPage() {
       ...f,
       interests: f.interests.includes(i) ? f.interests.filter((x) => x !== i) : f.interests.length < 10 ? [...f.interests, i] : f.interests,
     }));
-  };
-
-  const updatePrompt = (index, value) => {
-    setForm((f) => {
-      const prompts = [...f.prompts];
-      prompts[index] = { ...prompts[index], answer: value.slice(0, 150) };
-      return { ...f, prompts };
-    });
   };
 
   const addPhoto = () => {
@@ -64,16 +47,18 @@ export default function OnboardingPage() {
     const remaining = 9 - form.photos.length;
     const toUpload = files.slice(0, remaining);
     setUploading(true);
+    setError('');
     try {
       const result = await api.upload.photos(toUpload);
       setForm((f) => ({ ...f, photos: [...f.photos, ...result.photos] }));
-    } catch (err) { console.error('Error:', err.message); }
+    } catch (err) { setError(err.message || 'Upload failed'); }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleFinish = async () => {
     setSaving(true);
+    setError('');
     try {
       await api.profiles.update({
         photos: form.photos,
@@ -81,19 +66,17 @@ export default function OnboardingPage() {
         locationName: form.location,
         occupation: form.occupation,
         interests: form.interests,
-        prompts: form.prompts.filter((p) => p.answer.trim()),
         lookingFor: form.lookingFor,
         ageMin: form.ageMin,
         ageMax: form.ageMax,
       });
       navigate('/discover');
-    } catch (err) { console.error('Error:', err.message); }
+    } catch (err) { setError(err.message || 'Failed to save'); }
     setSaving(false);
   };
 
-  const promptsAnswered = form.prompts.filter((p) => p.answer.trim()).length;
   const progress = ((step + 1) / STEPS.length) * 100;
-  const canNext = step === 0 ? true : step === 1 ? true : step === 2 ? form.interests.length > 0 : step === 3 ? promptsAnswered >= 2 : true;
+  const canNext = step === 0 ? true : step === 1 ? true : step === 2 ? form.interests.length > 0 : true;
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col">
@@ -108,12 +91,14 @@ export default function OnboardingPage() {
         </div>
       </div>
 
+      {error && <div className="mx-6 mb-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-xl font-medium">{error}</div>}
+
       {/* Content */}
       <div className="flex-1 px-6 overflow-y-auto">
         {step === 0 && (
           <div className="fade-in">
             <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Add your photos</h2>
-            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Add at least 1 photo. Great photos get 10x more matches.</p>
+            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Great photos get 10x more matches.</p>
             <div className="grid grid-cols-3 gap-3 mb-4">
               {form.photos.map((p, i) => (
                 <div key={i} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-dark-surface group">
@@ -177,7 +162,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="fade-in">
             <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Pick your interests</h2>
-            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Select at least 3. This helps us find better matches.</p>
+            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Select at least 1. This helps us find better matches.</p>
             <div className="flex flex-wrap gap-2">
               {INTERESTS.map((i) => (
                 <button key={i} onClick={() => toggleInterest(i)}
@@ -193,29 +178,6 @@ export default function OnboardingPage() {
         )}
 
         {step === 3 && (
-          <div className="fade-in">
-            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Show your personality</h2>
-            <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Answer at least 2 prompts to let matches know the real you.</p>
-            <div className="space-y-4">
-              {form.prompts.map((prompt, i) => (
-                <div key={i} className="bg-gray-100 dark:bg-dark-surface rounded-2xl p-4">
-                  <label className="block text-sm font-bold text-pink-500 mb-2">{prompt.question}</label>
-                  <textarea
-                    value={prompt.answer}
-                    onChange={(e) => updatePrompt(i, e.target.value)}
-                    rows={2}
-                    placeholder="Your answer..."
-                    className="w-full px-4 py-3 bg-white dark:bg-dark-bg rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
-                  />
-                  <p className="text-xs text-gray-400 text-right mt-1">{prompt.answer.length}/150</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-3">{promptsAnswered}/2 minimum answered</p>
-          </div>
-        )}
-
-        {step === 4 && (
           <div className="fade-in">
             <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Set your preferences</h2>
             <p className="text-gray-500 dark:text-dark-muted text-sm mb-6">Who would you like to see?</p>
@@ -261,7 +223,7 @@ export default function OnboardingPage() {
         {step === 0 && (
           <button onClick={() => setStep(1)}
             className="px-5 py-3.5 bg-gray-100 dark:bg-dark-surface text-gray-500 dark:text-dark-muted font-bold rounded-xl hover:bg-gray-200 transition">
-            Skip for now
+            Skip
           </button>
         )}
         <button onClick={() => step < STEPS.length - 1 ? setStep((s) => s + 1) : handleFinish()}

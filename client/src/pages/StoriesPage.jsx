@@ -17,6 +17,7 @@ export default function StoriesPage() {
   const [posting, setPosting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadingStory, setUploadingStory] = useState(false);
+  const [storyError, setStoryError] = useState('');
   const storyFileRef = useRef(null);
 
   const loadStories = useCallback(async () => {
@@ -93,12 +94,13 @@ export default function StoriesPage() {
   const handlePost = async () => {
     if (!newStory.content.trim()) return;
     setPosting(true);
+    setStoryError('');
     try {
       await api.stories.post(newStory.content.trim(), newStory.contentType);
       setShowCreate(false);
       setNewStory({ content: '', contentType: 'text' });
       loadStories();
-    } catch (err) { console.error('Error:', err.message); }
+    } catch (err) { setStoryError(err.message || 'Failed to post story'); }
     setPosting(false);
   };
 
@@ -106,10 +108,11 @@ export default function StoriesPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingStory(true);
+    setStoryError('');
     try {
       const result = await api.upload.photo(file);
       setNewStory({ content: result.url, contentType: 'image' });
-    } catch (err) { console.error('Error:', err.message); }
+    } catch (err) { setStoryError(err.message || 'Image upload failed'); }
     setUploadingStory(false);
     if (storyFileRef.current) storyFileRef.current.value = '';
   };
@@ -319,6 +322,8 @@ export default function StoriesPage() {
           <div className="bg-white dark:bg-dark-card rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-300 dark:bg-dark-border rounded-full mx-auto mb-4" />
             <h2 className="text-lg font-extrabold text-gray-900 dark:text-white mb-4">New Story</h2>
+
+            {storyError && <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-xl font-medium">{storyError}</div>}
 
             {/* Content type toggle */}
             <div className="flex gap-2 mb-4">
