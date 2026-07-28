@@ -43,7 +43,11 @@ export default function LoginPage() {
         {error && (
           <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-100 dark:border-red-800/30">
             <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
-            <Link to="/register" className="mt-2 inline-block text-sm text-pink-500 font-bold hover:underline">Create an account →</Link>
+            <div className="flex gap-3 mt-2">
+              <Link to="/register" className="text-sm text-pink-500 font-bold hover:underline">Create account</Link>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <Link to="/forgot-password" className="text-sm text-pink-500 font-bold hover:underline">Reset password</Link>
+            </div>
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">

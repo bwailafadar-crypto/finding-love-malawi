@@ -8,13 +8,49 @@ export default function GoogleSignIn({ mode = 'login', onLoading }) {
   const buttonRef = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scriptReady, setScriptReady] = useState(false);
   const { googleLogin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google) return;
+    if (!GOOGLE_CLIENT_ID) return;
 
-    const initGoogle = () => {
+    if (window.google) {
+      setScriptReady(true);
+      return;
+    }
+
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => { console.warn('Google Sign-In script failed to load'); };
+      document.head.appendChild(script);
+    }
+
+    let check;
+    let timeout;
+    const start = Date.now();
+    check = setInterval(() => {
+      if (window.google) {
+        clearInterval(check);
+        clearTimeout(timeout);
+        setScriptReady(true);
+      } else if (Date.now() - start > 10000) {
+        clearInterval(check);
+        clearTimeout(timeout);
+      }
+    }, 200);
+    timeout = setTimeout(() => { clearInterval(check); }, 15000);
+    return () => { clearInterval(check); clearTimeout(timeout); };
+  }, []);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !scriptReady || !window.google) return;
+
+    try {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response) => {
@@ -46,20 +82,10 @@ export default function GoogleSignIn({ mode = 'login', onLoading }) {
           shape: 'rectangular',
         });
       }
-    };
-
-    if (window.google) {
-      initGoogle();
-    } else {
-      const check = setInterval(() => {
-        if (window.google) {
-          clearInterval(check);
-          initGoogle();
-        }
-      }, 100);
-      return () => clearInterval(check);
+    } catch (err) {
+      console.error('Google init error:', err.message);
     }
-  }, [mode, googleLogin, navigate, onLoading]);
+  }, [scriptReady, mode, googleLogin, navigate, onLoading]);
 
   if (!GOOGLE_CLIENT_ID) return null;
 

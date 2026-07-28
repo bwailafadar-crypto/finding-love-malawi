@@ -131,7 +131,10 @@ router.post('/login', async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || '90d',
     });
 
-    res.json({ token, user: { id: user.id, email: user.email } });
+    const profileResult = db.query('SELECT first_name, last_name FROM profiles WHERE user_id = ?', [user.id]);
+    const profile = profileResult.rows[0] || {};
+
+    res.json({ token, user: { id: user.id, email: user.email, firstName: profile.first_name, lastName: profile.last_name } });
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ error: 'Server error during login' });

@@ -12,7 +12,12 @@ class ApiClient {
     const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
     let data;
     try { data = await res.json(); } catch { data = {}; }
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    if (!res.ok) {
+      const errMsg = data.error || `Request failed (${res.status})`;
+      const err = new Error(errMsg);
+      err.status = res.status;
+      throw err;
+    }
     return data;
   }
 

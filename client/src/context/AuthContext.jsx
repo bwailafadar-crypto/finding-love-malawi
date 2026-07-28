@@ -16,8 +16,10 @@ export function AuthProvider({ children }) {
       setUser(data);
     } catch (err) {
       console.error('Error:', err.message);
-      localStorage.removeItem('token');
-      setUser(null);
+      if (err.message.includes('401') || err.message.includes('Invalid token') || err.message.includes('not found') || err.message.includes('Authentication required')) {
+        localStorage.removeItem('token');
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
