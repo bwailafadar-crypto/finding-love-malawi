@@ -10,6 +10,14 @@ const setupSecurity = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const { sanitizeBody } = require('./middleware/validation');
 
+// Ensure upload directories exist
+const fs = require('fs');
+const path = require('path');
+['uploads', 'uploads/photos', 'uploads/audio', 'uploads/videos'].forEach((dir) => {
+  const p = path.join(__dirname, dir);
+  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+});
+
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const swipeRoutes = require('./routes/swipes');
@@ -107,8 +115,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // In production, serve the built React frontend
-const path = require('path');
-const fs = require('fs');
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));

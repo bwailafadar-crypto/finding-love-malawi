@@ -93,7 +93,7 @@ export default function OnboardingPage() {
 
   const promptsAnswered = form.prompts.filter((p) => p.answer.trim()).length;
   const progress = ((step + 1) / STEPS.length) * 100;
-  const canNext = step === 0 ? form.photos.length > 0 : step === 1 ? true : step === 2 ? form.interests.length > 0 : step === 3 ? promptsAnswered >= 2 : true;
+  const canNext = step === 0 ? true : step === 1 ? true : step === 2 ? form.interests.length > 0 : step === 3 ? promptsAnswered >= 2 : true;
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col">
@@ -256,6 +256,12 @@ export default function OnboardingPage() {
           <button onClick={() => setStep((s) => s - 1)}
             className="px-5 py-3.5 bg-gray-100 dark:bg-dark-surface text-gray-700 dark:text-dark-text font-bold rounded-xl hover:bg-gray-200 transition flex items-center gap-1">
             <FiArrowLeft size={18} /> Back
+          </button>
+        )}
+        {step === 0 && (
+          <button onClick={() => setStep(1)}
+            className="px-5 py-3.5 bg-gray-100 dark:bg-dark-surface text-gray-500 dark:text-dark-muted font-bold rounded-xl hover:bg-gray-200 transition">
+            Skip for now
           </button>
         )}
         <button onClick={() => step < STEPS.length - 1 ? setStep((s) => s + 1) : handleFinish()}
