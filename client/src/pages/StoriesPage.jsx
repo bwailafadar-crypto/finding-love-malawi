@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiArrowLeft, FiPlus, FiX, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiX, FiTrash2, FiChevronLeft, FiChevronRight, FiCamera } from 'react-icons/fi';
 import api from '../utils/api';
 
 export default function StoriesPage() {
@@ -16,6 +16,8 @@ export default function StoriesPage() {
   const [newStory, setNewStory] = useState({ content: '', contentType: 'text' });
   const [posting, setPosting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadingStory, setUploadingStory] = useState(false);
+  const storyFileRef = useRef(null);
 
   const loadStories = useCallback(async () => {
     try {
@@ -99,6 +101,18 @@ export default function StoriesPage() {
       loadStories();
     } catch (err) { console.error('Error:', err.message); }
     setPosting(false);
+  };
+
+  const handleStoryImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingStory(true);
+    try {
+      const result = await api.upload.photo(file);
+      setNewStory({ content: result.url, contentType: 'image' });
+    } catch (err) { console.error('Error:', err.message); }
+    setUploadingStory(false);
+    if (storyFileRef.current) storyFileRef.current.value = '';
   };
 
   const handleDelete = async (storyId) => {
@@ -322,9 +336,24 @@ export default function StoriesPage() {
                 rows={4} placeholder="What's on your mind?"
                 className="w-full px-4 py-3 bg-gray-100 dark:bg-dark-surface rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none text-gray-900 dark:text-white mb-4" />
             ) : (
-              <input type="url" value={newStory.content} onChange={(e) => setNewStory({ ...newStory, content: e.target.value })}
-                placeholder="Paste image URL"
-                className="w-full px-4 py-3 bg-gray-100 dark:bg-dark-surface rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 dark:text-white mb-4" />
+              <div className="space-y-3 mb-4">
+                <input ref={storyFileRef} type="file" accept="image/*" onChange={handleStoryImageUpload} className="hidden" />
+                <button onClick={() => storyFileRef.current?.click()} disabled={uploadingStory}
+                  className="w-full py-8 border-2 border-dashed border-gray-300 dark:border-dark-border rounded-xl flex flex-col items-center gap-2 text-gray-400 hover:border-pink-400 hover:text-pink-400 transition disabled:opacity-50">
+                  {uploadingStory ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-pink-500 border-t-transparent" />
+                  ) : (
+                    <>
+                      <FiCamera size={28} />
+                      <span className="text-sm font-semibold">Tap to upload photo</span>
+                    </>
+                  )}
+                </button>
+                <div className="text-center text-xs text-gray-400 dark:text-dark-muted">or</div>
+                <input type="url" value={newStory.content} onChange={(e) => setNewStory({ ...newStory, content: e.target.value })}
+                  placeholder="Paste image URL"
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-dark-surface rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-900 dark:text-white" />
+              </div>
             )}
 
             {newStory.contentType === 'image' && newStory.content && (

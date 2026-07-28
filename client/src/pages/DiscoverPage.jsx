@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiX, FiStar, FiZap, FiMapPin, FiBriefcase, FiChevronUp, FiChevronDown, FiRefreshCw, FiRotateCcw, FiClock, FiCheck, FiMessageCircle, FiPlay } from 'react-icons/fi';
+import { FiHeart, FiX, FiStar, FiZap, FiMapPin, FiBriefcase, FiChevronUp, FiChevronDown, FiRefreshCw, FiRotateCcw, FiClock, FiCheck, FiMessageCircle, FiPlay, FiPlus } from 'react-icons/fi';
 import api from '../utils/api';
 import LazyImage from '../components/LazyImage';
 
@@ -22,6 +22,10 @@ export default function DiscoverPage() {
   const [activePhoto, setActivePhoto] = useState(0);
   const [sortBy, setSortBy] = useState('recommended');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [storyGroups, setStoryGroups] = useState([]);
+  const [viewerStoryGroup, setViewerStoryGroup] = useState(null);
+  const [viewerStoryIdx, setViewerStoryIdx] = useState(0);
+  const [storyProgress, setStoryProgress] = useState(0);
   const cardRef = useRef(null);
   const startX = useRef(0);
   const isDragging = useRef(false);
@@ -54,6 +58,59 @@ export default function DiscoverPage() {
     document.addEventListener('mousedown', closeSort);
     return () => document.removeEventListener('mousedown', closeSort);
   }, [showSortMenu]);
+
+  useEffect(() => {
+    const loadStories = async () => {
+      try {
+        const data = await api.stories.feed();
+        const list = Array.isArray(data) ? data : [];
+        const grouped = list.reduce((acc, s) => {
+          const uid = s.user_id;
+          if (!acc[uid]) {
+            let parsed = [];
+            try { parsed = typeof s.photos === 'string' ? JSON.parse(s.photos || '[]') : (s.photos || []); } catch { parsed = []; }
+            acc[uid] = { user: { id: uid, first_name: s.first_name, photos: parsed }, stories: [], viewed: s.viewed };
+          }
+          acc[uid].stories.push(s);
+          if (s.viewed) acc[uid].viewed = true;
+          return acc;
+        }, {});
+        setStoryGroups(Object.values(grouped));
+      } catch { setStoryGroups([]); }
+    };
+    loadStories();
+  }, []);
+
+  useEffect(() => {
+    if (!viewerStoryGroup) return;
+    setStoryProgress(0);
+    const timer = setTimeout(() => {
+      const group = viewerStoryGroup;
+      if (viewerStoryIdx < group.stories.length - 1) {
+        setViewerStoryIdx((i) => i + 1);
+      } else {
+        setViewerStoryGroup(null);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [viewerStoryGroup, viewerStoryIdx]);
+
+  useEffect(() => {
+    if (!viewerStoryGroup) return;
+    setStoryProgress(0);
+    const interval = setInterval(() => setStoryProgress((p) => Math.min(p + 2, 100)), 100);
+    return () => clearInterval(interval);
+  }, [viewerStoryGroup, viewerStoryIdx]);
+
+  useEffect(() => {
+    if (viewerStoryGroup) {
+      const story = viewerStoryGroup.stories[viewerStoryIdx];
+      if (story && !story.viewed) {
+        api.stories.view(story.id).catch(() => {});
+        setStoryGroups((prev) => prev.map((g) => g.user.id === viewerStoryGroup.user.id ? { ...g, viewed: true } : g));
+      }
+    }
+  }, [viewerStoryGroup, viewerStoryIdx]);
 
   const sortedProfiles = [...profiles].sort((a, b) => {
     if (sortBy === 'distance') {
@@ -188,6 +245,36 @@ export default function DiscoverPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] px-4 pt-1">
+      {/* Story rings */}
+      {storyGroups.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto py-3 scrollbar-hide">
+          {storyGroups.map((g) => (
+            <button key={g.user.id} onClick={() => { setViewerStoryGroup(g); setViewerStoryIdx(0); setStoryProgress(0); }}
+              className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className={`${g.viewed ? 'story-ring-seen' : 'story-ring'} p-0.5 rounded-full`}>
+                <div className="w-[54px] h-[54px] rounded-full overflow-hidden bg-white dark:bg-dark-card">
+                  {g.user.photos?.[0] ? (
+                    <img src={g.user.photos[0]} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-dark-surface">
+                      <span className="text-lg font-bold text-gray-400">{g.user.first_name?.[0] || '?'}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <span className="text-[10px] font-medium text-gray-500 dark:text-dark-muted w-14 text-center truncate">{g.user.first_name}</span>
+            </button>
+          ))}
+          <button onClick={() => navigate('/stories')}
+            className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="w-[54px] h-[54px] rounded-full bg-gray-100 dark:bg-dark-surface border-2 border-dashed border-gray-300 dark:border-dark-border flex items-center justify-center">
+              <FiPlus size={20} className="text-gray-400" />
+            </div>
+            <span className="text-[10px] font-medium text-gray-500 dark:text-dark-muted w-14 text-center">Your story</span>
+          </button>
+        </div>
+      )}
+
       {/* Sort bar */}
       <div className="flex justify-end mb-2 relative" data-sort-menu>
         <button
@@ -432,6 +519,55 @@ export default function DiscoverPage() {
                 <FiMessageCircle size={16} /> Message
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Story Viewer Overlay */}
+      {viewerStoryGroup && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+          <button onClick={() => setViewerStoryGroup(null)} className="absolute top-4 right-4 z-30 p-2 text-white/80 hover:text-white">
+            <FiX size={24} />
+          </button>
+          <div className="absolute top-3 left-3 right-3 flex gap-1 z-20">
+            {viewerStoryGroup.stories.map((s, i) => (
+              <div key={s.id} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
+                <div className="h-full bg-white rounded-full transition-all duration-100"
+                  style={{ width: i < viewerStoryIdx ? '100%' : i === viewerStoryIdx ? `${storyProgress}%` : '0%' }} />
+              </div>
+            ))}
+          </div>
+          <div className="absolute top-6 left-3 right-3 flex items-center gap-2.5 z-20">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-white/20">
+              {viewerStoryGroup.user.photos?.[0] ? (
+                <img src={viewerStoryGroup.user.photos[0]} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">{viewerStoryGroup.user.first_name?.[0]}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-white font-bold text-sm">{viewerStoryGroup.user.first_name}</p>
+          </div>
+          <div className="w-full h-full flex items-center justify-center px-4">
+            {viewerStoryGroup.stories[viewerStoryIdx]?.content_type === 'image' ? (
+              <img src={viewerStoryGroup.stories[viewerStoryIdx].content} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+            ) : (
+              <div className="max-w-sm w-full p-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl text-center">
+                <p className="text-white text-lg font-medium leading-relaxed whitespace-pre-wrap">{viewerStoryGroup.stories[viewerStoryIdx]?.content}</p>
+              </div>
+            )}
+          </div>
+          <div className="absolute inset-0 flex z-10">
+            <div className="w-1/3 h-full" onClick={() => {
+              if (viewerStoryIdx > 0) setViewerStoryIdx((i) => i - 1);
+              else setViewerStoryGroup(null);
+            }} />
+            <div className="w-1/3 h-full" />
+            <div className="w-1/3 h-full" onClick={() => {
+              if (viewerStoryIdx < viewerStoryGroup.stories.length - 1) setViewerStoryIdx((i) => i + 1);
+              else setViewerStoryGroup(null);
+            }} />
           </div>
         </div>
       )}
