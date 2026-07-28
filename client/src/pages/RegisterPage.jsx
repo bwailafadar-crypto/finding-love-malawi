@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import GoogleSignIn from '../components/GoogleSignIn';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ firstName: '', email: '', password: '', confirmPassword: '', age: '', gender: '' });
@@ -69,6 +70,11 @@ export default function RegisterPage() {
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-700" /></div>
+          <div className="relative flex justify-center text-sm"><span className="px-3 bg-white dark:bg-dark-bg text-gray-400">or continue with</span></div>
+        </div>
+        <GoogleSignIn mode="register" />
         <p className="text-center text-gray-500 dark:text-dark-muted text-sm mt-8">
           Already have an account? <Link to="/login" className="text-pink-500 font-bold hover:underline">Sign in</Link>
         </p>

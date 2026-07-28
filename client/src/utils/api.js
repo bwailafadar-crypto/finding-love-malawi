@@ -24,6 +24,7 @@ class ApiClient {
   auth = {
     register: (d) => this.post('/auth/register', d),
     login: (d) => this.post('/auth/login', d),
+    google: (credential) => this.post('/auth/google', { credential }),
     me: () => this.get('/auth/me'),
     logout: () => this.post('/auth/logout'),
     forgotPassword: (email) => this.post('/auth/forgot-password', { email }),

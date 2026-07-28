@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
 const { isValidEmail, isValidPassword, isValidDOB, sanitizeString } = require('../middleware/validation');
@@ -245,6 +246,96 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Reset password error:', err.message);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /google - Sign in / register with Google
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential required' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { email, given_name, family_name, picture, sub: googleId } = payload;
+
+    if (!email) {
+      return res.status(400).json({ error: 'No email from Google account' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user exists
+    let result = db.query('SELECT id, email, is_active FROM users WHERE email = ?', [normalizedEmail]);
+
+    let userId;
+    let isNewUser = false;
+
+    if (result.rows.length > 0) {
+      userId = result.rows[0].id;
+      if (!result.rows[0].is_active) {
+        return res.status(403).json({ error: 'Account deactivated' });
+      }
+    } else {
+      // Create new user (no password for Google users)
+      const placeholderHash = await bcrypt.hash(googleId, 8);
+      const insertResult = db.query(
+        'INSERT INTO users (email, password_hash) VALUES (?, ?)',
+        [normalizedEmail, placeholderHash]
+      );
+      userId = insertResult.rows[0].id;
+
+      db.query(
+        'INSERT INTO profiles (user_id, first_name, last_name, photos, avatar_url) VALUES (?, ?, ?, ?, ?)',
+        [userId, given_name || 'User', family_name || null, JSON.stringify(picture ? [picture] : []), picture || null]
+      );
+
+      db.query(
+        'INSERT INTO subscriptions (user_id, plan, expires_at) VALUES (?, ?, ?)',
+        [userId, 'free', null]
+      );
+
+      isNewUser = true;
+
+      try {
+        await emailService.sendWelcomeEmail(normalizedEmail, given_name || 'there');
+      } catch (_) {}
+    }
+
+    // Update last active
+    db.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?', [userId]);
+
+    const token = jwt.sign({ userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
+
+    // Get profile for response
+    const profileResult = db.query(
+      'SELECT first_name, last_name FROM profiles WHERE user_id = ?',
+      [userId]
+    );
+    const profile = profileResult.rows[0] || {};
+
+    res.json({
+      token,
+      user: {
+        id: userId,
+        email: normalizedEmail,
+        firstName: profile.first_name || given_name || 'User',
+        lastName: profile.last_name || family_name || null,
+      },
+      isNewUser,
+    });
+  } catch (err) {
+    console.error('Google auth error:', err.message);
+    res.status(500).json({ error: 'Google authentication failed' });
   }
 });
 
