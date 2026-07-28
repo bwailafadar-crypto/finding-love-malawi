@@ -75,7 +75,7 @@ router.post('/register', async (req, res) => {
     );
 
     const token = jwt.sign({ userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '90d',
     });
 
     res.status(201).json({
@@ -128,7 +128,7 @@ router.post('/login', async (req, res) => {
     db.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
     const token = jwt.sign({ userId: user.id, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '90d',
     });
 
     res.json({ token, user: { id: user.id, email: user.email } });
@@ -313,7 +313,7 @@ router.post('/google', async (req, res) => {
     db.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?', [userId]);
 
     const token = jwt.sign({ userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+      expiresIn: process.env.JWT_EXPIRES_IN || '90d',
     });
 
     // Get profile for response
