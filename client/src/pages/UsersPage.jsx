@@ -42,6 +42,8 @@ export default function UsersPage() {
   };
 
   const handleMessage = async (userId) => {
+    const person = users.find((u) => u.id === userId);
+    const name = person?.firstName || 'this person';
     try {
       const matches = await api.matches.list();
       const list = Array.isArray(matches) ? matches : [];
@@ -50,21 +52,25 @@ export default function UsersPage() {
       );
       if (existing) {
         navigate(`/chat/${existing.match_id || existing.id}`);
-      } else {
-        const res = await api.swipes.swipe(userId, 'like');
-        setLiked((prev) => new Set([...prev, userId]));
-        if (res.isMatch) {
-          const updatedMatches = await api.matches.list();
-          const newList = Array.isArray(updatedMatches) ? updatedMatches : [];
-          const newMatch = newList.find(
-            (m) => m.other_user_id === userId || m.user1_id === userId || m.user2_id === userId
-          );
-          if (newMatch) {
-            navigate(`/chat/${newMatch.match_id || newMatch.id}`);
-          } else {
-            navigate('/matches');
-          }
+        return;
+      }
+      const res = await api.swipes.swipe(userId, 'like');
+      setLiked((prev) => new Set([...prev, userId]));
+      if (res.isMatch) {
+        const updatedMatches = await api.matches.list();
+        const newList = Array.isArray(updatedMatches) ? updatedMatches : [];
+        const newMatch = newList.find(
+          (m) => m.other_user_id === userId || m.user1_id === userId || m.user2_id === userId
+        );
+        if (newMatch) {
+          navigate(`/chat/${newMatch.match_id || newMatch.id}`);
+        } else {
+          navigate('/matches');
         }
+      } else if (res.alreadyLiked) {
+        alert(`You've already liked ${name}. You can chat once they like you back.`);
+      } else {
+        alert(`Like sent to ${name}! You can chat once they like you back.`);
       }
     } catch (err) {
       console.error('Error:', err.message);

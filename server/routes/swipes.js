@@ -94,27 +94,38 @@ router.post('/', auth, async (req, res) => {
     }
 
     const existing = db.query(
-      'SELECT id FROM swipes WHERE swiper_id = ? AND swiped_id = ?',
+      'SELECT id, action FROM swipes WHERE swiper_id = ? AND swiped_id = ?',
       [req.user.id, swipedId]
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Already swiped on this user' });
+      const existingSwipe = existing.rows[0];
+      if (existingSwipe.action !== 'dislike') {
+        const match = db.query(
+          'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
+          [Math.min(req.user.id, swipedId), Math.max(req.user.id, swipedId)]
+        );
+        return res.json({ isMatch: match.rows.length > 0, action, matchedUser: null, alreadyLiked: true });
+      }
+      db.query(
+        'UPDATE swipes SET action = ?, created_at = datetime(\'now\') WHERE id = ?',
+        ['like', existingSwipe.id]
+      );
+    } else {
+      db.query(
+        'INSERT INTO swipes (swiper_id, swiped_id, action) VALUES (?, ?, ?)',
+        [req.user.id, swipedId, action === 'dislike' ? 'dislike' : action]
+      );
     }
 
     // Boost: just activate boost for 30 min, don't create a swipe
     if (action === 'boost') {
       db.query(
-        'UPDATE users SET boost_active = 1, boost_expires = datetime("now", "+30 minutes") WHERE id = ?',
+        'UPDATE users SET boost_active = 1, boost_expires = datetime(\'now\', "+30 minutes") WHERE id = ?',
         [req.user.id]
       );
       return res.json({ isMatch: false, action: 'boost', boosted: true });
     }
-
-    db.query(
-      'INSERT INTO swipes (swiper_id, swiped_id, action) VALUES (?, ?, ?)',
-      [req.user.id, swipedId, action === 'dislike' ? 'dislike' : action]
-    );
 
     if (action === 'super_like') {
       db.query(
